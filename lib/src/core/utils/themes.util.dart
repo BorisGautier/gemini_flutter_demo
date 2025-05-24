@@ -17,9 +17,18 @@ class AppThemes {
     titleLarge: TextStyle(fontFamily: "OpenSans-SemiBold", fontSize: 16.0),
     titleMedium: TextStyle(fontFamily: "OpenSans-SemiBold", fontSize: 14.0),
     titleSmall: TextStyle(fontFamily: "OpenSans-Medium", fontSize: 12.0),
-    bodyLarge: TextStyle(fontFamily: "OpenSans", fontSize: textSizeLarge),
-    bodyMedium: TextStyle(fontFamily: "OpenSans", fontSize: textSizeMedium),
-    bodySmall: TextStyle(fontFamily: "OpenSans", fontSize: textSizeSmall),
+    bodyLarge: TextStyle(
+      fontFamily: "OpenSans",
+      fontSize: AppSizes.textSizeLarge,
+    ),
+    bodyMedium: TextStyle(
+      fontFamily: "OpenSans",
+      fontSize: AppSizes.textSizeMedium,
+    ),
+    bodySmall: TextStyle(
+      fontFamily: "OpenSans",
+      fontSize: AppSizes.textSizeSmall,
+    ),
     labelLarge: TextStyle(fontFamily: "OpenSans-Medium", fontSize: 14.0),
     labelMedium: TextStyle(fontFamily: "OpenSans", fontSize: 12.0),
     labelSmall: TextStyle(fontFamily: "OpenSans", fontSize: 10.0),

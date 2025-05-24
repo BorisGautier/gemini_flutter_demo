@@ -6,6 +6,7 @@ import 'package:kartia/src/core/utils/logging.util.dart';
 import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
+import 'package:kartia/src/core/utils/logging.util.dart' as logging;
 
 class LogService {
   static LogService? _instance;
@@ -56,7 +57,7 @@ class LogService {
       output: MultiOutput([
         ConsoleOutput(), // Pour voir les logs en console pendant le développement
         GraylogOutput(
-          graylogUrl: graylogUrl!,
+          graylogUrl: AppConfigs.graylogUrl!,
           source: 'flutter-app-${packageInfo.appName}',
           additionalFields: {
             'appVersion': packageInfo.version,
@@ -68,7 +69,8 @@ class LogService {
         ),
       ]),
       // Filtrer les logs selon l'environnement
-      filter: DevelopmentFilter(), // Changer à ProductionFilter() en production
+      filter:
+          logging.DevelopmentFilter(), // Changer à ProductionFilter() en production
     );
   }
 
