@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/di/di.dart';
+import 'package:kartia/src/core/routes/app.routes.dart';
 import 'package:kartia/src/modules/app/bloc/app_bloc.dart';
-import 'package:kartia/src/modules/home/views/home.screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
+import 'package:kartia/src/modules/splash/bloc/splash_bloc.dart';
+import 'package:kartia/src/app_navigation_manager.dart';
 
+/// Widget racine de l'application Kartia
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -15,31 +19,48 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        // Le bloc AppBloc est fourni à l'ensemble de l'application.
+        // BLoC principal de l'application (thème, langue)
         BlocProvider(create: (context) => getIt<AppBloc>()),
+
+        // BLoC d'authentification - initialisé une seule fois pour toute l'app
+        BlocProvider(
+          create: (context) {
+            final authBloc = getIt<AuthBloc>();
+            // Initialiser le bloc d'authentification
+            authBloc.add(const AuthInitialized());
+            return authBloc;
+          },
+        ),
+
+        // BLoC de l'écran de splash
+        BlocProvider(create: (context) => getIt<SplashBloc>()),
       ],
       child: BlocBuilder<AppBloc, AppState>(
-        builder: (context, state) {
+        builder: (context, appState) {
           return MaterialApp(
-            // Le titre de l'application.
+            // Configuration de base
             title: "Kartia",
-            // Le thème de l'application est défini en fonction de l'état actuel de l'application.
-            theme: state.themeData,
-            // Les délégués de localisation sont utilisés pour traduire le texte de l'application dans la langue préférée de l'utilisateur.
+            debugShowCheckedModeBanner: false,
+
+            // Thème et localisation
+            theme: appState.themeData,
+            locale: appState.locale,
+
+            // Délégués de localisation
             localizationsDelegates: const [
               KartiaLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
             ],
-            // La langue préférée de l'utilisateur est définie en fonction de l'état actuel de l'application.
-            locale: state.locale,
-            // La liste des langues que l'application prend en charge.
             supportedLocales: KartiaLocalizations.delegate.supportedLocales,
-            // Désactive la bannière de débogage.
-            debugShowCheckedModeBanner: false,
-            // Le widget LoadingPage est affiché en tant que page d'accueil de l'application.
-            home: const HomeScreen(),
+
+            // Navigation
+            onGenerateRoute: AppRoutes.generateRoute,
+
+            // Page d'accueil avec navigation conditionnelle
+            home:
+                const AppNavigationManager(), // Utilisez le gestionnaire de navigation
           );
         },
       ),
