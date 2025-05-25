@@ -3,13 +3,15 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kartia/src/core/routes/app.routes.dart';
+import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/utils/colors.util.dart';
 import 'package:kartia/src/core/utils/sizes.util.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
 import 'package:kartia/src/modules/splash/bloc/splash_bloc.dart';
+import 'package:kartia/src/modules/auth/views/login.screen.dart';
+import 'package:kartia/src/modules/home/views/home.screen.dart';
 
-/// Écran de splash moderne et animé
+/// Écran de splash moderne et animé avec navigation directe
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
@@ -22,7 +24,7 @@ class SplashScreen extends StatelessWidget {
   }
 }
 
-/// Vue principale du splash avec toutes les animations
+/// Vue principale du splash avec navigation directe intégrée
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
 
@@ -38,12 +40,14 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   late AnimationController _particlesController;
   late AnimationController _shimmerController;
   late AnimationController _progressController;
+  late AnimationController _pulseController;
 
   // Animations du logo
   late Animation<double> _logoScale;
   late Animation<double> _logoFade;
   late Animation<double> _logoRotation;
   late Animation<Offset> _logoSlide;
+  late Animation<double> _logoPulse;
 
   // Animations du texte
   late Animation<double> _textFade;
@@ -60,46 +64,106 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   // Animation de progression
   late Animation<double> _progressValue;
 
+  // Navigation
+  bool _hasNavigated = false;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _startNavigationTimer(); // TIMER DE NAVIGATION DIRECT
+  }
+
+  void _startNavigationTimer() {
+    // Navigation forcée après 3.5 secondes, peu importe l'état du bloc
+    Future.delayed(const Duration(milliseconds: 4000), () {
+      if (mounted && !_hasNavigated) {
+        _navigateToNextScreen();
+      }
+    });
+  }
+
+  void _navigateToNextScreen() {
+    if (_hasNavigated) return;
+
+    setState(() {
+      _hasNavigated = true;
+    });
+
+    // Récupérer l'état d'authentification
+    final authState = context.read<AuthBloc>().state;
+
+    if (authState.isAuthenticated) {
+      // Naviguer vers Home
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder:
+              (_) => MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: context.read<AuthBloc>()),
+                ],
+                child: const HomeScreen(),
+              ),
+        ),
+        (route) => false,
+      );
+    } else {
+      // Naviguer vers Login
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder:
+              (_) => MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: context.read<AuthBloc>()),
+                ],
+                child: const LoginScreen(),
+              ),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   void _initializeAnimations() {
     // Contrôleur principal (durée totale)
     _masterController = AnimationController(
-      duration: const Duration(milliseconds: 3500),
+      duration: const Duration(milliseconds: 4000),
       vsync: this,
     );
 
     // Contrôleur pour le logo
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     );
 
     // Contrôleur pour le texte
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
     // Contrôleur pour les particules
     _particlesController = AnimationController(
-      duration: const Duration(milliseconds: 4000),
+      duration: const Duration(milliseconds: 5000),
       vsync: this,
     );
 
     // Contrôleur pour le shimmer
     _shimmerController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     );
 
     // Contrôleur pour la progression
     _progressController = AnimationController(
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 3500),
+      vsync: this,
+    );
+
+    // Contrôleur pour l'effet de pulsation
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
@@ -122,21 +186,25 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       ),
     );
 
-    _logoRotation = Tween<double>(begin: -0.5, end: 0.0).animate(
+    _logoRotation = Tween<double>(begin: -0.8, end: 0.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: const Interval(0.2, 0.8, curve: Curves.easeOutBack),
+        curve: const Interval(0.2, 0.9, curve: Curves.easeOutBack),
       ),
     );
 
     _logoSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3),
+      begin: const Offset(0, -0.5),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: const Interval(0.1, 0.6, curve: Curves.easeOutCubic),
+        curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic),
       ),
+    );
+
+    _logoPulse = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     // === ANIMATIONS DU TEXTE ===
@@ -148,7 +216,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
 
     _textSlide = Tween<Offset>(
-      begin: const Offset(0, 0.5),
+      begin: const Offset(0, 0.8),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
@@ -169,7 +237,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       CurvedAnimation(parent: _masterController, curve: Curves.easeInOut),
     );
 
-    _shimmerPosition = Tween<double>(begin: -1.0, end: 2.0).animate(
+    _shimmerPosition = Tween<double>(begin: -1.5, end: 2.5).animate(
       CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
     );
 
@@ -194,13 +262,16 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     _shimmerController.repeat();
     _progressController.forward();
 
-    // Logo après 300ms
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) _logoController.forward();
+    // Logo après 400ms
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        _logoController.forward();
+        _pulseController.repeat(reverse: true);
+      }
     });
 
-    // Texte après 800ms
-    Future.delayed(const Duration(milliseconds: 800), () {
+    // Texte après 900ms
+    Future.delayed(const Duration(milliseconds: 900), () {
       if (mounted) _textController.forward();
     });
   }
@@ -213,39 +284,30 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     _particlesController.dispose();
     _shimmerController.dispose();
     _progressController.dispose();
+    _pulseController.dispose();
     super.dispose();
-  }
-
-  void _navigateBasedOnAuth(AuthState authState) {
-    if (authState.isAuthenticated) {
-      context.pushNamedAndRemoveUntil(AppRoutes.home);
-    } else {
-      context.pushNamedAndRemoveUntil(AppRoutes.login);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = KartiaLocalizations.of(context);
+
     return Scaffold(
-      body: MultiBlocListener(
-        listeners: [
-          BlocListener<SplashBloc, SplashState>(
-            listener: (context, state) {
-              if (state.animationPhase == SplashAnimationPhase.logoStarted) {
-                _startAnimations();
-              }
+      body: BlocListener<SplashBloc, SplashState>(
+        listener: (context, state) {
+          if (state.animationPhase == SplashAnimationPhase.logoStarted) {
+            _startAnimations();
+          }
 
-              if (state.hasInitializationError) {
-                _showErrorDialog(context, state.initializationError!);
-              }
+          if (state.hasInitializationError) {
+            _showErrorDialog(context, l10n, state.initializationError!);
+          }
 
-              if (state.isInitialized && state.shouldNavigate) {
-                final authState = context.read<AuthBloc>().state;
-                _navigateBasedOnAuth(authState);
-              }
-            },
-          ),
-        ],
+          // Navigation anticipée si le bloc est prêt avant le timer
+          if (state.isReadyToNavigate && !_hasNavigated) {
+            _navigateToNextScreen();
+          }
+        },
         child: BlocBuilder<SplashBloc, SplashState>(
           builder: (context, state) {
             return AnimatedBuilder(
@@ -261,10 +323,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                       _buildParticles(),
 
                       // Contenu principal
-                      _buildMainContent(state),
+                      _buildMainContent(l10n, state),
 
                       // Indicateur de progression
-                      _buildProgressIndicator(state),
+                      _buildProgressIndicator(l10n, state),
 
                       // Effet shimmer
                       _buildShimmerEffect(),
@@ -288,23 +350,23 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         end: Alignment.bottomRight,
         colors: [
           Color.lerp(
-            AppColors.primary.withAlpha(10),
-            AppColors.primary.withAlpha(30),
+            AppColors.primary.withAlpha(15),
+            AppColors.primary.withAlpha(40),
             progress,
           )!,
           Color.lerp(
-            AppColors.secondary.withAlpha(5),
-            AppColors.secondary.withAlpha(20),
+            AppColors.secondary.withAlpha(8),
+            AppColors.secondary.withAlpha(25),
             progress,
           )!,
           Color.lerp(
-            AppColors.primaryPurple.withAlpha(2),
-            AppColors.primaryPurple.withAlpha(10),
+            AppColors.primaryPurple.withAlpha(5),
+            AppColors.primaryPurple.withAlpha(15),
             progress,
           )!,
           Colors.white,
         ],
-        stops: [0.0, 0.4 + (progress * 0.2), 0.7 + (progress * 0.1), 1.0],
+        stops: [0.0, 0.3 + (progress * 0.2), 0.6 + (progress * 0.1), 1.0],
       ),
     );
   }
@@ -319,7 +381,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
             size: Size.infinite,
             painter: ParticlesPainter(
               animationValue: _particlesController.value,
-              particleCount: 50,
+              particleCount: 60,
             ),
           ),
         );
@@ -327,25 +389,25 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMainContent(SplashState state) {
+  Widget _buildMainContent(KartiaLocalizations l10n, SplashState state) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Spacer(flex: 2),
 
-          // Logo animé
+          // Logo animé avec effets améliorés
           _buildAnimatedLogo(),
 
           SizedBox(height: heightSpace.height! * 3),
 
           // Texte animé
-          _buildAnimatedText(),
+          _buildAnimatedText(l10n),
 
           const Spacer(flex: 1),
 
           // Informations de version
-          _buildVersionInfo(),
+          _buildVersionInfo(l10n),
 
           SizedBox(height: heightSpace.height! * 2),
         ],
@@ -355,38 +417,51 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
   Widget _buildAnimatedLogo() {
     return AnimatedBuilder(
-      animation: _logoController,
+      animation: Listenable.merge([_logoController, _pulseController]),
       builder: (context, child) {
         return SlideTransition(
           position: _logoSlide,
           child: Transform.rotate(
             angle: _logoRotation.value,
             child: Transform.scale(
-              scale: _logoScale.value,
+              scale: _logoScale.value * _logoPulse.value,
               child: FadeTransition(
                 opacity: _logoFade,
                 child: Hero(
                   tag: 'app_logo',
                   child: Container(
-                    width: 180,
-                    height: 180,
+                    width: 200,
+                    height: 200,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(35),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.white, Colors.white.withAlpha(95)],
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(40),
-                          blurRadius: 40 * _logoFade.value,
-                          spreadRadius: 10 * _logoFade.value,
+                          color: AppColors.primary.withAlpha(50),
+                          blurRadius: 50 * _logoFade.value,
+                          spreadRadius: 15 * _logoFade.value,
+                          offset: Offset(0, 15 * _logoFade.value),
                         ),
                         BoxShadow(
-                          color: AppColors.secondary.withAlpha(20),
-                          blurRadius: 60 * _logoFade.value,
-                          spreadRadius: 15 * _logoFade.value,
+                          color: AppColors.secondary.withAlpha(30),
+                          blurRadius: 80 * _logoFade.value,
+                          spreadRadius: 25 * _logoFade.value,
+                          offset: Offset(0, 25 * _logoFade.value),
+                        ),
+                        BoxShadow(
+                          color: AppColors.primaryPurple.withAlpha(20),
+                          blurRadius: 100 * _logoFade.value,
+                          spreadRadius: 30 * _logoFade.value,
+                          offset: Offset(0, 30 * _logoFade.value),
                         ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(35),
                       child: Image.asset(
                         'assets/images/logo.png',
                         fit: BoxFit.contain,
@@ -402,7 +477,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAnimatedText() {
+  Widget _buildAnimatedText(KartiaLocalizations l10n) {
     return AnimatedBuilder(
       animation: _textController,
       builder: (context, child) {
@@ -414,7 +489,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
               opacity: _textFade,
               child: Column(
                 children: [
-                  // Nom de l'application avec gradient et shimmer
+                  // Nom de l'application avec gradient et shimmer amélioré
                   ShaderMask(
                     shaderCallback: (bounds) {
                       return LinearGradient(
@@ -422,64 +497,97 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                           AppColors.primary,
                           AppColors.secondary,
                           AppColors.primaryPurple,
+                          AppColors.secondaryYellow,
                           AppColors.primary,
                         ],
-                        stops:
-                            [
-                              _shimmerPosition.value - 0.3,
-                              _shimmerPosition.value,
-                              _shimmerPosition.value + 0.1,
-                              _shimmerPosition.value + 0.3,
-                            ].map((stop) => stop.clamp(0.0, 1.0)).toList(),
+                        stops: [
+                          (_shimmerPosition.value - 0.4).clamp(0.0, 1.0),
+                          (_shimmerPosition.value - 0.2).clamp(0.0, 1.0),
+                          _shimmerPosition.value.clamp(0.0, 1.0),
+                          (_shimmerPosition.value + 0.2).clamp(0.0, 1.0),
+                          (_shimmerPosition.value + 0.4).clamp(0.0, 1.0),
+                        ],
                       ).createShader(bounds);
                     },
                     child: Text(
                       'Kartia',
                       style: TextStyle(
-                        fontSize: 48,
+                        fontSize: 56,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        letterSpacing: 3,
+                        letterSpacing: 4,
                         shadows: [
                           Shadow(
-                            color: AppColors.primary.withAlpha(30),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
+                            color: AppColors.primary.withAlpha(40),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                          Shadow(
+                            color: AppColors.secondary.withAlpha(30),
+                            blurRadius: 25,
+                            offset: const Offset(0, 12),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  SizedBox(height: heightSpace.height!),
+                  SizedBox(height: heightSpace.height! * 1.5),
 
-                  // Slogan avec animation
+                  // Slogan avec animation et design amélioré
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
+                      horizontal: 24,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.primary.withAlpha(10),
-                          AppColors.secondary.withAlpha(10),
+                          AppColors.primary.withAlpha(15),
+                          AppColors.secondary.withAlpha(15),
+                          AppColors.primaryPurple.withAlpha(15),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(25),
                       border: Border.all(
-                        color: AppColors.primary.withAlpha(10),
-                        width: 1,
+                        color: AppColors.primary.withAlpha(30),
+                        width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(20),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      'Votre assistant intelligent',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 1,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.auto_awesome,
+                            color: AppColors.white,
+                            size: 16,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          l10n.splashSlogan,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -491,9 +599,9 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildProgressIndicator(SplashState state) {
+  Widget _buildProgressIndicator(KartiaLocalizations l10n, SplashState state) {
     return Positioned(
-      bottom: 100,
+      bottom: 120,
       left: 40,
       right: 40,
       child: AnimatedBuilder(
@@ -501,37 +609,48 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         builder: (context, child) {
           return Column(
             children: [
-              // Barre de progression moderne
+              // Barre de progression moderne avec design amélioré
               Container(
-                height: 4,
+                height: 6,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(10),
-                  borderRadius: BorderRadius.circular(2),
+                  color: AppColors.primary.withAlpha(15),
+                  borderRadius: BorderRadius.circular(3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow2,
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
                 ),
                 child: Stack(
                   children: [
                     // Fond de la barre
                     Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(10),
-                        borderRadius: BorderRadius.circular(2),
+                        color: AppColors.primary.withAlpha(15),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
 
-                    // Progression
+                    // Progression avec gradient animé
                     FractionallySizedBox(
                       widthFactor: _progressValue.value,
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [AppColors.primary, AppColors.secondary],
+                            colors: [
+                              AppColors.primary,
+                              AppColors.secondary,
+                              AppColors.primaryPurple,
+                            ],
                           ),
-                          borderRadius: BorderRadius.circular(2),
+                          borderRadius: BorderRadius.circular(3),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withAlpha(40),
-                              blurRadius: 8,
-                              spreadRadius: 1,
+                              color: AppColors.primary.withAlpha(50),
+                              blurRadius: 12,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
@@ -541,19 +660,48 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                 ),
               ),
 
-              SizedBox(height: 16),
+              SizedBox(height: 20),
 
-              // Texte de chargement avec animation
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Text(
-                  _getLoadingText(state),
-                  key: ValueKey(_getLoadingText(state)),
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+              // Texte de chargement avec animation améliorée
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(90),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow2,
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      _getLoadingText(l10n, state),
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -563,43 +711,52 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildVersionInfo() {
+  Widget _buildVersionInfo(KartiaLocalizations l10n) {
     return AnimatedBuilder(
       animation: _textController,
       builder: (context, child) {
         return FadeTransition(
           opacity: _textFade,
-          child: Column(
-            children: [
-              Text(
-                '© 2025 Kartia',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.mediumGrey,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(10),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withAlpha(20)),
-                ),
-                child: Text(
-                  'Version 1.0.0',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(80),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.lightGrey.withAlpha(50)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  l10n.splashCopyright,
                   style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: AppColors.mediumGrey,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
+                SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    l10n.splashVersion,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -619,32 +776,46 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     );
   }
 
-  String _getLoadingText(SplashState state) {
+  String _getLoadingText(KartiaLocalizations l10n, SplashState state) {
     if (state.hasInitializationError) {
-      return 'Erreur de chargement...';
+      return l10n.errorLoadingFailed;
     }
 
     switch (state.animationPhase) {
       case SplashAnimationPhase.initial:
-        return 'Démarrage...';
+        return l10n.splashStarting;
       case SplashAnimationPhase.logoStarted:
-        return 'Chargement des ressources...';
+        return l10n.splashLoadingResources;
       case SplashAnimationPhase.textStarted:
-        return 'Initialisation...';
+        return l10n.splashInitializing;
       case SplashAnimationPhase.completed:
-        return 'Prêt !';
+        return l10n.splashReady;
     }
   }
 
-  void _showErrorDialog(BuildContext context, String error) {
+  void _showErrorDialog(
+    BuildContext context,
+    KartiaLocalizations l10n,
+    String error,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder:
           (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Row(
               children: [
-                Icon(Icons.error_outline, color: AppColors.error),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.error_outline, color: AppColors.error),
+                ),
                 SizedBox(width: 12),
                 const Text('Erreur'),
               ],
@@ -656,7 +827,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                   Navigator.pop(context);
                   context.read<SplashBloc>().add(const SplashStarted());
                 },
-                child: const Text('Réessayer'),
+                child: Text(l10n.retry),
               ),
             ],
           ),
@@ -664,7 +835,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   }
 }
 
-/// Painter pour les particules de fond
+/// Painter pour les particules de fond amélioré
 class ParticlesPainter extends CustomPainter {
   final double animationValue;
   final int particleCount;
@@ -673,19 +844,32 @@ class ParticlesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.primary.withAlpha(10)
-          ..style = PaintingStyle.fill;
+    final paint = Paint()..style = PaintingStyle.fill;
 
     for (int i = 0; i < particleCount; i++) {
       final progress = (animationValue + (i / particleCount)) % 1.0;
       final x = (size.width * 0.1) + (size.width * 0.8 * ((i * 0.7) % 1.0));
       final y = size.height * (1.0 - progress);
-      final radius = 2.0 + (math.sin(progress * math.pi) * 3.0);
+      final radius = 1.5 + (math.sin(progress * math.pi * 2) * 4.0);
 
-      paint.color = AppColors.primary.withAlpha(10);
+      // Couleur basée sur l'index pour plus de variété
+      Color particleColor;
+      switch (i % 4) {
+        case 0:
+          particleColor = AppColors.primary.withAlpha(15);
+          break;
+        case 1:
+          particleColor = AppColors.secondary.withAlpha(12);
+          break;
+        case 2:
+          particleColor = AppColors.primaryPurple.withAlpha(10);
+          break;
+        default:
+          particleColor = AppColors.secondaryYellow.withAlpha(8);
+          break;
+      }
 
+      paint.color = particleColor;
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
   }
@@ -694,7 +878,7 @@ class ParticlesPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-/// Painter pour l'effet shimmer
+/// Painter pour l'effet shimmer amélioré
 class ShimmerPainter extends CustomPainter {
   final double animationValue;
 
@@ -707,25 +891,27 @@ class ShimmerPainter extends CustomPainter {
           ..shader = LinearGradient(
             colors: [
               Colors.transparent,
-              Colors.white.withAlpha(10),
+              Colors.white.withAlpha(15),
+              Colors.white.withAlpha(25),
+              Colors.white.withAlpha(15),
               Colors.transparent,
             ],
-            stops: const [0.0, 0.5, 1.0],
-            transform: GradientRotation(math.pi / 4),
+            stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+            transform: GradientRotation(math.pi / 6),
           ).createShader(
             Rect.fromLTWH(
-              size.width * (animationValue - 0.3),
+              size.width * (animationValue - 0.4),
               0,
-              size.width * 0.6,
+              size.width * 0.8,
               size.height,
             ),
           );
 
     canvas.drawRect(
       Rect.fromLTWH(
-        size.width * (animationValue - 0.3),
+        size.width * (animationValue - 0.4),
         0,
-        size.width * 0.6,
+        size.width * 0.8,
         size.height,
       ),
       paint,

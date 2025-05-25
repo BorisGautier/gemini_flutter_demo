@@ -42,6 +42,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
   flutter_localizations:
     sdk: flutter
+  geolocator: ^14.0.0
   get_it: ^8.0.3
   http: ^1.4.0
   hydrated_bloc: ^10.0.0
@@ -54,6 +55,7 @@ dependencies:
   package_info_plus: ^8.3.0
   path: ^1.9.1
   path_provider: ^2.1.5
+  permission_handler: ^12.0.0+1
   rxdart: ^0.28.0
   shared_preferences: ^2.5.3
   sqlite3: ^2.7.5

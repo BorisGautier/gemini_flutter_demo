@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/routes/app.routes.dart';
 import 'package:kartia/src/core/utils/colors.util.dart';
 import 'package:kartia/src/core/utils/sizes.util.dart';
@@ -27,8 +28,18 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   late AnimationController _fadeAnimationController;
   late AnimationController _slideAnimationController;
+  late AnimationController _scaleAnimationController;
+  late AnimationController _staggerAnimationController;
+
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+
+  // Animations échelonnées pour les champs
+  late Animation<Offset> _field1Animation;
+  late Animation<Offset> _field2Animation;
+  late Animation<Offset> _field3Animation;
+  late Animation<Offset> _field4Animation;
 
   bool _acceptTerms = false;
 
@@ -50,6 +61,16 @@ class _RegisterScreenState extends State<RegisterScreen>
       vsync: this,
     );
 
+    _scaleAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _staggerAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _fadeAnimationController,
@@ -66,14 +87,68 @@ class _RegisterScreenState extends State<RegisterScreen>
         curve: Curves.easeOutCubic,
       ),
     );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _scaleAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
+
+    // Animations échelonnées pour les champs
+    _field1Animation = Tween<Offset>(
+      begin: const Offset(-1, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _staggerAnimationController,
+        curve: const Interval(0.0, 0.25, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _field2Animation = Tween<Offset>(
+      begin: const Offset(1, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _staggerAnimationController,
+        curve: const Interval(0.25, 0.5, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _field3Animation = Tween<Offset>(
+      begin: const Offset(-1, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _staggerAnimationController,
+        curve: const Interval(0.5, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _field4Animation = Tween<Offset>(
+      begin: const Offset(1, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _staggerAnimationController,
+        curve: const Interval(0.75, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
   }
 
   void _startAnimations() {
     Future.delayed(const Duration(milliseconds: 300), () {
-      _fadeAnimationController.forward();
+      if (mounted) _fadeAnimationController.forward();
     });
     Future.delayed(const Duration(milliseconds: 500), () {
-      _slideAnimationController.forward();
+      if (mounted) _slideAnimationController.forward();
+    });
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) _scaleAnimationController.forward();
+    });
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) _staggerAnimationController.forward();
     });
   }
 
@@ -85,6 +160,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     _confirmPasswordController.dispose();
     _fadeAnimationController.dispose();
     _slideAnimationController.dispose();
+    _scaleAnimationController.dispose();
+    _staggerAnimationController.dispose();
     super.dispose();
   }
 
@@ -93,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (!_acceptTerms) {
         KartiaSnackbar.show(
           context,
-          message: 'Veuillez accepter les conditions d\'utilisation',
+          message: KartiaLocalizations.of(context).pleaseAcceptTerms,
           type: SnackbarType.error,
         );
         return;
@@ -126,12 +203,14 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = KartiaLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: AppColors.primary),
+          icon: Icon(Icons.arrow_back_ios, color: AppColors.secondary),
           onPressed: _navigateToLogin,
         ),
       ),
@@ -146,7 +225,6 @@ class _RegisterScreenState extends State<RegisterScreen>
             );
           } else if (state.isAuthenticated) {
             // Afficher un message de succès
-
             KartiaSnackbar.show(
               context,
               message: 'Bienvenue ${state.user?.displayName ?? ''} !',
@@ -161,11 +239,12 @@ class _RegisterScreenState extends State<RegisterScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.secondary.withAlpha(10),
+                AppColors.secondary.withAlpha(15),
+                AppColors.primaryPurple.withAlpha(8),
                 AppColors.primary.withAlpha(5),
                 Colors.white,
               ],
-              stops: const [0.0, 0.5, 1.0],
+              stops: const [0.0, 0.3, 0.6, 1.0],
             ),
           ),
           child: SafeArea(
@@ -173,22 +252,20 @@ class _RegisterScreenState extends State<RegisterScreen>
               opacity: _fadeAnimation,
               child: SlideTransition(
                 position: _slideAnimation,
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: EdgeInsets.all(fixPadding),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(height: heightSpace.height!),
-                        _buildHeader(),
-                        SizedBox(height: heightSpace.height! * 2),
-                        _buildRegisterForm(),
-                        SizedBox(height: heightSpace.height! * 2),
-                        _buildAlternativeSignInMethods(),
-                        SizedBox(height: heightSpace.height!),
-                        _buildFooter(),
-                      ],
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: heightSpace.height!),
+                      _buildHeader(l10n),
+                      SizedBox(height: heightSpace.height! * 2),
+                      _buildRegisterForm(l10n),
+                      SizedBox(height: heightSpace.height! * 2),
+                      _buildAlternativeSignInMethods(l10n),
+                      SizedBox(height: heightSpace.height!),
+                      _buildFooter(l10n),
+                    ],
                   ),
                 ),
               ),
@@ -199,229 +276,356 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        // Logo plus petit que sur la page de connexion
-        Hero(
-          tag: 'app_logo',
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.secondary.withAlpha(30),
-                  blurRadius: 15,
-                  spreadRadius: 3,
+  Widget _buildHeader(KartiaLocalizations l10n) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Column(
+        children: [
+          // Logo plus petit avec animation
+          Hero(
+            tag: 'app_logo',
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.secondary.withAlpha(30),
+                    blurRadius: 25,
+                    spreadRadius: 5,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white, Colors.white.withAlpha(90)],
                 ),
-              ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
-            child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
           ),
-        ),
-        SizedBox(height: heightSpace.height!),
+          SizedBox(height: heightSpace.height!),
 
-        // Titre et sous-titre
-        Text(
-          'Créer un compte',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.secondary,
+          // Titre avec gradient
+          ShaderMask(
+            shaderCallback: (bounds) {
+              return LinearGradient(
+                colors: [AppColors.secondary, AppColors.primaryPurple],
+              ).createShader(bounds);
+            },
+            child: Text(
+              l10n.createAccount,
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 28,
+                letterSpacing: 1.0,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: heightSpace.height! / 2),
-        Text(
-          'Rejoignez-nous dès maintenant',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: AppColors.mediumGrey),
-          textAlign: TextAlign.center,
-        ),
-      ],
+
+          SizedBox(height: heightSpace.height! / 2),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.secondary.withAlpha(10),
+                  AppColors.primaryPurple.withAlpha(10),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: AppColors.secondary.withAlpha(30)),
+            ),
+            child: Text(
+              l10n.joinUsNow,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildRegisterForm() {
+  Widget _buildRegisterForm(KartiaLocalizations l10n) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state.isLoading;
 
-        return Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Champ nom d'affichage
-              KartiaTextField(
-                controller: _displayNameController,
-                labelText: 'Nom complet (optionnel)',
-                hintText: 'Jean Dupont',
-                prefixIcon: Icons.person_outline,
-                enabled: !isLoading,
-                textInputAction: TextInputAction.next,
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow2,
+                blurRadius: 20,
+                spreadRadius: 5,
+                offset: const Offset(0, 10),
               ),
-              SizedBox(height: heightSpace.height!),
-
-              // Champ email
-              KartiaEmailField(
-                controller: _emailController,
-                labelText: 'Adresse email',
-                hintText: 'exemple@email.com',
-                enabled: !isLoading,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Veuillez entrer votre email';
-                  }
-                  if (!Validators.isValidEmail(value!)) {
-                    return 'Veuillez entrer un email valide';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: heightSpace.height!),
-
-              // Champ mot de passe
-              KartiaPasswordField(
-                controller: _passwordController,
-                labelText: 'Mot de passe',
-                hintText: 'Minimum 6 caractères',
-                enabled: !isLoading,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Veuillez entrer un mot de passe';
-                  }
-                  if (!Validators.isValidPassword(value!)) {
-                    return 'Le mot de passe doit contenir au moins 6 caractères';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: heightSpace.height!),
-
-              // Champ confirmation mot de passe
-              KartiaPasswordField(
-                controller: _confirmPasswordController,
-                labelText: 'Confirmer le mot de passe',
-                hintText: 'Retapez votre mot de passe',
-                enabled: !isLoading,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Veuillez confirmer votre mot de passe';
-                  }
-                  if (!Validators.isValidCPassword(
-                    _passwordController.text,
-                    value!,
-                  )) {
-                    return 'Les mots de passe ne correspondent pas';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: heightSpace.height!),
-
-              // Case à cocher conditions d'utilisation
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Checkbox(
-                    value: _acceptTerms,
-                    onChanged:
-                        isLoading
-                            ? null
-                            : (value) {
-                              setState(() {
-                                _acceptTerms = value ?? false;
-                              });
-                            },
-                    activeColor: AppColors.secondary,
+            ],
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Champ nom d'affichage avec animation
+                SlideTransition(
+                  position: _field1Animation,
+                  child: KartiaTextField(
+                    controller: _displayNameController,
+                    labelText: l10n.displayName,
+                    hintText: l10n.displayNameHint,
+                    prefixIcon: Icons.person_outline,
+                    enabled: !isLoading,
+                    textInputAction: TextInputAction.next,
                   ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap:
-                          isLoading
-                              ? null
-                              : () {
-                                setState(() {
-                                  _acceptTerms = !_acceptTerms;
-                                });
-                              },
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              color: AppColors.mediumGrey,
-                              fontSize: 14,
+                ),
+                SizedBox(height: heightSpace.height!),
+
+                // Champ email avec animation
+                SlideTransition(
+                  position: _field2Animation,
+                  child: KartiaEmailField(
+                    controller: _emailController,
+                    labelText: l10n.email,
+                    hintText: l10n.emailHint,
+                    enabled: !isLoading,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return l10n.validationEmailRequired;
+                      }
+                      if (!Validators.isValidEmail(value!)) {
+                        return l10n.validationEmailInvalid;
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(height: heightSpace.height!),
+
+                // Champ mot de passe avec animation
+                SlideTransition(
+                  position: _field3Animation,
+                  child: KartiaPasswordField(
+                    controller: _passwordController,
+                    labelText: l10n.password,
+                    hintText: l10n.newPasswordHint,
+                    enabled: !isLoading,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return l10n.validationPasswordRequired;
+                      }
+                      if (!Validators.isValidPassword(value!)) {
+                        return l10n.validationPasswordMinLength;
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(height: heightSpace.height!),
+
+                // Champ confirmation mot de passe avec animation
+                SlideTransition(
+                  position: _field4Animation,
+                  child: KartiaPasswordField(
+                    controller: _confirmPasswordController,
+                    labelText: l10n.confirmPassword,
+                    hintText: l10n.confirmPasswordHint,
+                    enabled: !isLoading,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return l10n.validationConfirmPasswordRequired;
+                      }
+                      if (!Validators.isValidCPassword(
+                        _passwordController.text,
+                        value!,
+                      )) {
+                        return l10n.validationPasswordsDoNotMatch;
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(height: heightSpace.height!),
+
+                // Case à cocher conditions d'utilisation
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color:
+                        _acceptTerms
+                            ? AppColors.secondary.withAlpha(5)
+                            : AppColors.lightGrey.withAlpha(10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color:
+                          _acceptTerms
+                              ? AppColors.secondary.withAlpha(30)
+                              : AppColors.lightGrey.withAlpha(30),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _acceptTerms,
+                        onChanged:
+                            isLoading
+                                ? null
+                                : (value) {
+                                  setState(() {
+                                    _acceptTerms = value ?? false;
+                                  });
+                                },
+                        activeColor: AppColors.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap:
+                              isLoading
+                                  ? null
+                                  : () {
+                                    setState(() {
+                                      _acceptTerms = !_acceptTerms;
+                                    });
+                                  },
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  color: AppColors.darkGrey,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                                children: [
+                                  TextSpan(text: l10n.acceptTerms),
+                                  TextSpan(
+                                    text: l10n.termsOfService,
+                                    style: TextStyle(
+                                      color: AppColors.secondary,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                  TextSpan(text: l10n.and),
+                                  TextSpan(
+                                    text: l10n.privacyPolicy,
+                                    style: TextStyle(
+                                      color: AppColors.secondary,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            children: [
-                              const TextSpan(text: 'J\'accepte les '),
-                              TextSpan(
-                                text: 'conditions d\'utilisation',
-                                style: TextStyle(
-                                  color: AppColors.secondary,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                              const TextSpan(text: ' et la '),
-                              TextSpan(
-                                text: 'politique de confidentialité',
-                                style: TextStyle(
-                                  color: AppColors.secondary,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              SizedBox(height: heightSpace.height!),
+                ),
+                SizedBox(height: heightSpace.height! * 1.5),
 
-              // Bouton d'inscription
-              KartiaButton(
-                text: 'S\'inscrire',
-                onPressed: isLoading ? null : _handleRegister,
-                isLoading: isLoading,
-                width: double.infinity,
-                size: KartiaButtonSize.large,
-                backgroundColor: AppColors.secondary,
-              ),
-            ],
+                // Bouton d'inscription
+                KartiaButton(
+                  text: l10n.signUp,
+                  onPressed: isLoading ? null : _handleRegister,
+                  isLoading: isLoading,
+                  width: double.infinity,
+                  size: KartiaButtonSize.large,
+                  backgroundColor: AppColors.secondary,
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildAlternativeSignInMethods() {
+  Widget _buildAlternativeSignInMethods(KartiaLocalizations l10n) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state.isLoading;
 
         return Column(
           children: [
-            // Divider avec texte
+            // Divider avec texte amélioré
             Row(
               children: [
                 Expanded(
-                  child: Divider(color: AppColors.lightGrey, thickness: 1),
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          AppColors.lightGrey,
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'ou s\'inscrire avec',
-                    style: TextStyle(color: AppColors.mediumGrey, fontSize: 14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: AppColors.lightGrey.withAlpha(50),
+                      ),
+                    ),
+                    child: Text(
+                      l10n.orSignUpWith,
+                      style: TextStyle(
+                        color: AppColors.mediumGrey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
-                  child: Divider(color: AppColors.lightGrey, thickness: 1),
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          AppColors.lightGrey,
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -433,7 +637,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 // Google Sign In
                 Expanded(
                   child: KartiaButton(
-                    text: 'Google',
+                    text: l10n.google,
                     icon: Icons.g_mobiledata,
                     onPressed: isLoading ? null : _handleGoogleSignIn,
                     type: KartiaButtonType.outline,
@@ -447,7 +651,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 // Phone Auth
                 Expanded(
                   child: KartiaButton(
-                    text: 'Téléphone',
+                    text: l10n.phone,
                     icon: Icons.phone,
                     onPressed: isLoading ? null : _navigateToPhoneAuth,
                     type: KartiaButtonType.outline,
@@ -464,28 +668,42 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(KartiaLocalizations l10n) {
     return Column(
       children: [
         // Lien vers la connexion
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Déjà un compte ? ',
-              style: TextStyle(color: AppColors.mediumGrey),
-            ),
-            TextButton(
-              onPressed: _navigateToLogin,
-              child: Text(
-                'Se connecter',
-                style: TextStyle(
-                  color: AppColors.secondary,
-                  fontWeight: FontWeight.w600,
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(80),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: AppColors.lightGrey.withAlpha(50)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                l10n.alreadyHaveAccount,
+                style: TextStyle(color: AppColors.mediumGrey, fontSize: 14),
+              ),
+              TextButton(
+                onPressed: _navigateToLogin,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  l10n.signIn,
+                  style: TextStyle(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

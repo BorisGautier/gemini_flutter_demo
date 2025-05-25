@@ -1,5 +1,3 @@
-// lib/src/modules/splash/bloc/splash_event.dart
-
 part of 'splash_bloc.dart';
 
 /// Classe abstraite pour tous les événements du splash
@@ -31,7 +29,7 @@ class SplashAnimationPhaseChanged extends SplashEvent {
   String toString() => 'SplashAnimationPhaseChanged { phase: $phase }';
 }
 
-/// Événement pour indiquer que l'initialisation est terminée
+/// Événement déclenché quand l'initialisation est terminée
 class SplashInitializationCompleted extends SplashEvent {
   final bool success;
 

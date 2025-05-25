@@ -33,6 +33,8 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       state.copyWith(
         isLoading: true,
         animationPhase: SplashAnimationPhase.initial,
+        isInitialized: false,
+        shouldNavigate: false,
       ),
     );
 
@@ -56,6 +58,14 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         backgroundProgress: _getBackgroundProgress(event.phase),
       ),
     );
+
+    // Si les animations sont terminées et l'initialisation aussi, permettre la navigation
+    if (event.phase == SplashAnimationPhase.completed && state.isInitialized) {
+      _logger.info(
+        'SplashBloc: Animations et initialisation terminées, navigation autorisée',
+      );
+      emit(state.copyWith(shouldNavigate: true, isLoading: false));
+    }
   }
 
   /// Initialisation terminée
@@ -67,17 +77,24 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       'SplashBloc: Initialisation terminée avec succès: ${event.success}',
     );
 
-    emit(
-      state.copyWith(
-        isInitialized: event.success,
-        initializationError: event.success ? null : 'Erreur d\'initialisation',
-      ),
-    );
+    if (event.success) {
+      emit(state.copyWith(isInitialized: true, initializationError: null));
 
-    // Si l'initialisation est terminée et les animations aussi, naviguer
-    if (event.success &&
-        state.animationPhase == SplashAnimationPhase.completed) {
-      add(const SplashNavigateToNextScreen());
+      // Si les animations sont terminées aussi, permettre la navigation
+      if (state.animationPhase == SplashAnimationPhase.completed) {
+        _logger.info(
+          'SplashBloc: Initialisation et animations terminées, navigation autorisée',
+        );
+        emit(state.copyWith(shouldNavigate: true, isLoading: false));
+      }
+    } else {
+      emit(
+        state.copyWith(
+          isInitialized: false,
+          initializationError: 'Erreur d\'initialisation',
+          isLoading: false,
+        ),
+      );
     }
   }
 
@@ -86,30 +103,36 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     SplashNavigateToNextScreen event,
     Emitter<SplashState> emit,
   ) {
-    _logger.info('SplashBloc: Navigation vers l\'écran suivant');
+    _logger.info('SplashBloc: Navigation vers l\'écran suivant demandée');
 
-    emit(state.copyWith(isLoading: false, shouldNavigate: true));
+    emit(state.copyWith(shouldNavigate: true, isLoading: false));
   }
 
   /// Démarrer la séquence d'animations
   void _startAnimationSequence() {
     // Phase 1: Démarrer l'animation du logo après 500ms
     Timer(const Duration(milliseconds: 500), () {
-      add(const SplashAnimationPhaseChanged(SplashAnimationPhase.logoStarted));
+      if (!isClosed) {
+        add(
+          const SplashAnimationPhaseChanged(SplashAnimationPhase.logoStarted),
+        );
+      }
     });
 
     // Phase 2: Démarrer l'animation du texte après 1500ms
     Timer(const Duration(milliseconds: 1500), () {
-      add(const SplashAnimationPhaseChanged(SplashAnimationPhase.textStarted));
+      if (!isClosed) {
+        add(
+          const SplashAnimationPhaseChanged(SplashAnimationPhase.textStarted),
+        );
+      }
     });
 
     // Phase 3: Animation terminée après 3000ms
     _animationTimer = Timer(const Duration(milliseconds: 3000), () {
-      add(const SplashAnimationPhaseChanged(SplashAnimationPhase.completed));
-
-      // Naviguer si l'initialisation est déjà terminée
-      if (state.isInitialized) {
-        add(const SplashNavigateToNextScreen());
+      if (!isClosed) {
+        _logger.info('SplashBloc: Animations terminées');
+        add(const SplashAnimationPhaseChanged(SplashAnimationPhase.completed));
       }
     });
   }
@@ -117,11 +140,16 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   /// Démarrer l'initialisation de l'application
   void _startInitialization() {
     _initializationTimer = Timer(const Duration(milliseconds: 2000), () async {
+      if (isClosed) return;
+
       try {
+        _logger.info('SplashBloc: Début de l\'initialisation');
+
         // Vérifier que le DI est bien initialisé
         bool success = DIManager.isInitialized;
 
         if (!success) {
+          _logger.info('SplashBloc: Initialisation du DI...');
           success = await DIManager.safeInit();
         }
 
@@ -129,14 +157,19 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         if (success) {
           // Simuler d'autres initialisations (base de données, permissions, etc.)
           await Future.delayed(const Duration(milliseconds: 500));
-
           _logger.info('SplashBloc: Initialisation de l\'application réussie');
+        } else {
+          _logger.error('SplashBloc: Échec de l\'initialisation du DI');
         }
 
-        add(SplashInitializationCompleted(success));
+        if (!isClosed) {
+          add(SplashInitializationCompleted(success));
+        }
       } catch (e) {
         _logger.error('SplashBloc: Erreur lors de l\'initialisation', e);
-        add(const SplashInitializationCompleted(false));
+        if (!isClosed) {
+          add(const SplashInitializationCompleted(false));
+        }
       }
     });
   }

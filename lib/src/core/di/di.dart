@@ -8,6 +8,7 @@ import 'package:kartia/src/modules/app/bloc/app_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
 import 'package:kartia/src/modules/auth/repositories/auth.repository.dart';
+import 'package:kartia/src/modules/gps/bloc/gps_bloc.dart';
 import 'package:kartia/src/modules/splash/bloc/splash_bloc.dart';
 
 final GetIt getIt = GetIt.instance;
@@ -35,6 +36,7 @@ Future<void> init() async {
 
   //Bloc
   // Enregistrement des instances des différents blocs
+  getIt.registerFactory<GpsBloc>(() => GpsBloc(logger: getIt()));
   getIt.registerFactory<AppBloc>(() => AppBloc(logger: getIt()));
   getIt.registerFactory<SplashBloc>(() => SplashBloc());
 

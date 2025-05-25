@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/routes/app.routes.dart';
 import 'package:kartia/src/core/utils/colors.util.dart';
 import 'package:kartia/src/core/utils/sizes.util.dart';
@@ -25,8 +26,14 @@ class _LoginScreenState extends State<LoginScreen>
 
   late AnimationController _fadeAnimationController;
   late AnimationController _slideAnimationController;
+  late AnimationController _scaleAnimationController;
+  late AnimationController _logoAnimationController;
+
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoRotationAnimation;
 
   @override
   void initState() {
@@ -36,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _initializeAnimations() {
+    // Contrôleurs d'animation
     _fadeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -46,6 +54,17 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
     );
 
+    _scaleAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _logoAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    // Animations
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _fadeAnimationController,
@@ -62,14 +81,44 @@ class _LoginScreenState extends State<LoginScreen>
         curve: Curves.easeOutCubic,
       ),
     );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _scaleAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
+
+    _logoScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoAnimationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
+      ),
+    );
+
+    _logoRotationAnimation = Tween<double>(begin: -0.2, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _logoAnimationController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOutBack),
+      ),
+    );
   }
 
   void _startAnimations() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _fadeAnimationController.forward();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _logoAnimationController.forward();
     });
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _slideAnimationController.forward();
+
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _fadeAnimationController.forward();
+    });
+
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) _slideAnimationController.forward();
+    });
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) _scaleAnimationController.forward();
     });
   }
 
@@ -79,6 +128,8 @@ class _LoginScreenState extends State<LoginScreen>
     _passwordController.dispose();
     _fadeAnimationController.dispose();
     _slideAnimationController.dispose();
+    _scaleAnimationController.dispose();
+    _logoAnimationController.dispose();
     super.dispose();
   }
 
@@ -111,6 +162,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = KartiaLocalizations.of(context);
+
     return Scaffold(
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -120,8 +173,9 @@ class _LoginScreenState extends State<LoginScreen>
               message: state.errorMessage!,
               type: SnackbarType.error,
             );
-          } 
-          // Navigation supprimée - AppNavigationManager s'en occupe
+          } else if (state.isAuthenticated) {
+            context.pushNamedAndRemoveUntil(AppRoutes.home);
+          }
         },
         child: Container(
           decoration: BoxDecoration(
@@ -129,11 +183,12 @@ class _LoginScreenState extends State<LoginScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primary.withAlpha(10),
-                AppColors.secondary.withAlpha(5),
+                AppColors.primary.withAlpha(15),
+                AppColors.secondary.withAlpha(8),
+                AppColors.primaryPurple.withAlpha(5),
                 Colors.white,
               ],
-              stops: const [0.0, 0.5, 1.0],
+              stops: const [0.0, 0.3, 0.6, 1.0],
             ),
           ),
           child: SafeArea(
@@ -141,22 +196,20 @@ class _LoginScreenState extends State<LoginScreen>
               opacity: _fadeAnimation,
               child: SlideTransition(
                 position: _slideAnimation,
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: EdgeInsets.all(fixPadding),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(height: heightSpace.height! * 2),
-                        _buildHeader(),
-                        SizedBox(height: heightSpace.height! * 3),
-                        _buildLoginForm(),
-                        SizedBox(height: heightSpace.height! * 2),
-                        _buildAlternativeSignInMethods(),
-                        SizedBox(height: heightSpace.height! * 2),
-                        _buildFooter(),
-                      ],
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: heightSpace.height! * 2),
+                      _buildHeader(l10n),
+                      SizedBox(height: heightSpace.height! * 3),
+                      _buildLoginForm(l10n),
+                      SizedBox(height: heightSpace.height! * 2),
+                      _buildAlternativeSignInMethods(l10n),
+                      SizedBox(height: heightSpace.height! * 2),
+                      _buildFooter(l10n),
+                    ],
                   ),
                 ),
               ),
@@ -167,116 +220,329 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(KartiaLocalizations l10n) {
     return Column(
       children: [
-        // Logo avec animation
-        Hero(
-          tag: 'app_logo',
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withAlpha(30),
-                  blurRadius: 20,
-                  spreadRadius: 5,
+        // Logo animé avec effet 3D
+        AnimatedBuilder(
+          animation: _logoAnimationController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _logoScaleAnimation.value,
+              child: Transform.rotate(
+                angle: _logoRotationAnimation.value,
+                child: Hero(
+                  tag: 'app_logo',
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(40),
+                          blurRadius: 30 * _logoScaleAnimation.value,
+                          spreadRadius: 8 * _logoScaleAnimation.value,
+                          offset: Offset(0, 10 * _logoScaleAnimation.value),
+                        ),
+                        BoxShadow(
+                          color: AppColors.secondary.withAlpha(20),
+                          blurRadius: 50 * _logoScaleAnimation.value,
+                          spreadRadius: 15 * _logoScaleAnimation.value,
+                          offset: Offset(0, 20 * _logoScaleAnimation.value),
+                        ),
+                      ],
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.white, Colors.white.withAlpha(95)],
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(25),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
-          ),
+              ),
+            );
+          },
         ),
-        SizedBox(height: heightSpace.height!),
+        SizedBox(height: heightSpace.height! * 1.5),
 
-        // Titre et sous-titre
-        Text(
-          'Bienvenue !',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+        // Titre avec gradient et animation
+        ScaleTransition(
+          scale: _scaleAnimation,
+          child: ShaderMask(
+            shaderCallback: (bounds) {
+              return AppColors.primaryGradient.createShader(bounds);
+            },
+            child: Text(
+              l10n.welcome,
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 32,
+                letterSpacing: 1.2,
+                shadows: [
+                  Shadow(
+                    color: AppColors.primary.withAlpha(30),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
-          textAlign: TextAlign.center,
         ),
+
         SizedBox(height: heightSpace.height! / 2),
-        Text(
-          'Connectez-vous pour continuer',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: AppColors.mediumGrey),
-          textAlign: TextAlign.center,
+
+        // Sous-titre avec animation
+        ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withAlpha(10),
+                  AppColors.secondary.withAlpha(10),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.primary.withAlpha(20),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              l10n.signInToContinue,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildLoginForm(KartiaLocalizations l10n) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state.isLoading;
 
-        return Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Champ email
-              KartiaEmailField(
-                controller: _emailController,
-                labelText: 'Adresse email',
-                hintText: 'exemple@email.com',
-                enabled: !isLoading,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Veuillez entrer votre email';
-                  }
-                  if (!Validators.isValidEmail(value!)) {
-                    return 'Veuillez entrer un email valide';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: heightSpace.height!),
+        return ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadow2,
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  // Champ email
+                  KartiaEmailField(
+                    controller: _emailController,
+                    labelText: l10n.email,
+                    hintText: l10n.emailHint,
+                    enabled: !isLoading,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return l10n.validationEmailRequired;
+                      }
+                      if (!Validators.isValidEmail(value!)) {
+                        return l10n.validationEmailInvalid;
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: heightSpace.height!),
 
-              // Champ mot de passe
-              KartiaPasswordField(
-                controller: _passwordController,
-                labelText: 'Mot de passe',
-                hintText: 'Entrez votre mot de passe',
-                enabled: !isLoading,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Veuillez entrer votre mot de passe';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: heightSpace.height! / 2),
+                  // Champ mot de passe
+                  KartiaPasswordField(
+                    controller: _passwordController,
+                    labelText: l10n.password,
+                    hintText: l10n.passwordHint,
+                    enabled: !isLoading,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return l10n.validationPasswordRequired;
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: heightSpace.height! / 2),
 
-              // Lien mot de passe oublié
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: isLoading ? null : _navigateToForgotPassword,
-                  child: Text(
-                    'Mot de passe oublié ?',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                  // Lien mot de passe oublié
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: isLoading ? null : _navigateToForgotPassword,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: Text(
+                        l10n.forgotPassword,
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  SizedBox(height: heightSpace.height!),
+
+                  // Bouton de connexion avec animation
+                  KartiaButton(
+                    text: l10n.signIn,
+                    onPressed: isLoading ? null : _handleLogin,
+                    isLoading: isLoading,
+                    width: double.infinity,
+                    size: KartiaButtonSize.large,
+                    backgroundColor: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlternativeSignInMethods(KartiaLocalizations l10n) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading = state.isLoading;
+
+        return ScaleTransition(
+          scale: _scaleAnimation,
+          child: Column(
+            children: [
+              // Divider avec texte
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            AppColors.lightGrey,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: AppColors.lightGrey.withAlpha(50),
+                        ),
+                      ),
+                      child: Text(
+                        l10n.orContinueWith,
+                        style: TextStyle(
+                          color: AppColors.mediumGrey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            AppColors.lightGrey,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: heightSpace.height! * 1.5),
+
+              // Boutons d'authentification alternative
+              Row(
+                children: [
+                  // Phone Auth
+                  Expanded(
+                    child: KartiaButton(
+                      text: l10n.phone,
+                      icon: Icons.phone,
+                      onPressed: isLoading ? null : _navigateToPhoneAuth,
+                      type: KartiaButtonType.outline,
+                      size: KartiaButtonSize.large,
+                      borderColor: AppColors.primaryPurple,
+                      textColor: AppColors.primaryPurple,
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: heightSpace.height!),
 
-              // Bouton de connexion
-              KartiaButton(
-                text: 'Se connecter',
-                onPressed: isLoading ? null : _handleLogin,
-                isLoading: isLoading,
+              // Connexion anonyme avec style amélioré
+              Container(
                 width: double.infinity,
-                size: KartiaButtonSize.large,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.secondary.withAlpha(10),
+                      AppColors.primaryPurple.withAlpha(10),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.secondary.withAlpha(30)),
+                ),
+                child: KartiaButton(
+                  text: l10n.continueAsGuest,
+                  icon: Icons.person_outline,
+                  onPressed: isLoading ? null : _handleAnonymousSignIn,
+                  type: KartiaButtonType.text,
+                  backgroundColor: Colors.transparent,
+                  textColor: AppColors.secondary,
+                  width: double.infinity,
+                ),
               ),
             ],
           ),
@@ -285,107 +551,59 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildAlternativeSignInMethods() {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        final isLoading = state.isLoading;
-
-        return Column(
-          children: [
-            // Divider avec texte
-            Row(
+  Widget _buildFooter(KartiaLocalizations l10n) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Column(
+        children: [
+          // Lien vers l'inscription
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(80),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: AppColors.lightGrey.withAlpha(50)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Divider(color: AppColors.lightGrey, thickness: 1),
+                Text(
+                  l10n.noAccount,
+                  style: TextStyle(color: AppColors.mediumGrey, fontSize: 14),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                TextButton(
+                  onPressed: _navigateToRegister,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   child: Text(
-                    'ou continuer avec',
-                    style: TextStyle(color: AppColors.mediumGrey, fontSize: 14),
-                  ),
-                ),
-                Expanded(
-                  child: Divider(color: AppColors.lightGrey, thickness: 1),
-                ),
-              ],
-            ),
-            SizedBox(height: heightSpace.height!),
-
-            // Boutons d'authentification alternative
-            Row(
-              children: [
-                // Google Sign In
-                /* Expanded(
-                  child: KartiaButton(
-                    text: 'Google',
-                    icon: Icons.g_mobiledata,
-                    onPressed: isLoading ? null : _handleGoogleSignIn,
-                    type: KartiaButtonType.outline,
-                    size: KartiaButtonSize.large,
-                  ),
-                ),*/
-                SizedBox(width: widthSpace.width!),
-
-                // Phone Auth
-                Expanded(
-                  child: KartiaButton(
-                    text: 'Téléphone',
-                    icon: Icons.phone,
-                    onPressed: isLoading ? null : _navigateToPhoneAuth,
-                    type: KartiaButtonType.outline,
-                    size: KartiaButtonSize.large,
+                    l10n.signUp,
+                    style: TextStyle(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: heightSpace.height!),
+          ),
 
-            // Connexion anonyme
-            KartiaButton(
-              text: 'Continuer en tant qu\'invité',
-              onPressed: isLoading ? null : _handleAnonymousSignIn,
-              type: KartiaButtonType.text,
-              width: double.infinity,
+          // Copyright
+          SizedBox(height: heightSpace.height!),
+          Text(
+            l10n.copyright,
+            style: TextStyle(
+              color: AppColors.mediumGrey.withAlpha(80),
+              fontSize: 11,
+              letterSpacing: 0.3,
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildFooter() {
-    return Column(
-      children: [
-        // Lien vers l'inscription
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Pas encore de compte ? ',
-              style: TextStyle(color: AppColors.mediumGrey),
-            ),
-            TextButton(
-              onPressed: _navigateToRegister,
-              child: Text(
-                'S\'inscrire',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        // Version de l'app ou autres infos
-        SizedBox(height: heightSpace.height!),
-        Text(
-          '© 2025 Kartia. Tous droits réservés.',
-          style: TextStyle(color: AppColors.mediumGrey, fontSize: 12),
-          textAlign: TextAlign.center,
-        ),
-      ],
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

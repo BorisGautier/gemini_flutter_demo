@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kartia/src/core/di/di.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
 import 'package:kartia/src/modules/auth/views/edit_profile.screen.dart';
 import 'package:kartia/src/modules/auth/views/login.screen.dart';
@@ -53,49 +52,119 @@ class AppRoutes {
         return _buildRoute(settings, const SplashScreen());
 
       case login:
+        // Pour les routes d'authentification, on utilise le BlocBuilder pour s'assurer
+        // que si l'utilisateur est déjà connecté, on affiche la bonne page
         return _buildRoute(
           settings,
-          BlocProvider(
-            create: (context) => getIt<AuthBloc>(),
-            child: const LoginScreen(),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (state.isAuthenticated) {
+                // Si déjà connecté, rediriger vers l'accueil
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(home);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const LoginScreen();
+            },
           ),
         );
 
       case register:
         return _buildRoute(
           settings,
-          BlocProvider(
-            create: (context) => getIt<AuthBloc>(),
-            child: const RegisterScreen(),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(home);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const RegisterScreen();
+            },
           ),
         );
 
       case phoneAuth:
         return _buildRoute(
           settings,
-          BlocProvider(
-            create: (context) => getIt<AuthBloc>(),
-            child: const PhoneAuthScreen(),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(home);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const PhoneAuthScreen();
+            },
           ),
         );
 
       case forgotPassword:
         return _buildRoute(
           settings,
-          BlocProvider(
-            create: (context) => getIt<AuthBloc>(),
-            child: const ForgotPasswordScreen(),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(home);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const ForgotPasswordScreen();
+            },
           ),
         );
 
       case home:
-        return _buildRoute(settings, const HomeScreen());
+        return _buildRoute(
+          settings,
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (!state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(login);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const HomeScreen();
+            },
+          ),
+        );
 
       case profile:
-        return _buildRoute(settings, const ProfileScreen());
+        return _buildRoute(
+          settings,
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (!state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(login);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const ProfileScreen();
+            },
+          ),
+        );
 
       case editProfile:
-        return _buildRoute(settings, const EditProfileScreen());
+        return _buildRoute(
+          settings,
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (!state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(login);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+              return const EditProfileScreen();
+            },
+          ),
+        );
 
       default:
         return _buildErrorRoute(settings);

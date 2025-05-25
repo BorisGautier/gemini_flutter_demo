@@ -1,8 +1,6 @@
-// lib/src/modules/splash/bloc/splash_state.dart
-
 part of 'splash_bloc.dart';
 
-/// Énumération pour les phases d'animation du splash
+/// Énumération pour les phases d'animation
 enum SplashAnimationPhase {
   /// Phase initiale
   initial,
@@ -13,99 +11,98 @@ enum SplashAnimationPhase {
   /// Animation du texte démarrée
   textStarted,
 
-  /// Animations terminées
+  /// Toutes les animations terminées
   completed,
 }
 
-/// État du splash
+/// État du splash screen
 class SplashState extends Equatable {
-  /// Indique si le splash est en cours de chargement
+  /// Phase d'animation actuelle
+  final SplashAnimationPhase animationPhase;
+
+  /// Indique si l'initialisation est en cours
   final bool isLoading;
 
-  /// Indique si l'initialisation est terminée
+  /// Indique si l'initialisation est terminée avec succès
   final bool isInitialized;
 
-  /// Phase actuelle de l'animation
-  final SplashAnimationPhase animationPhase;
+  /// Message d'erreur en cas d'échec d'initialisation
+  final String? initializationError;
 
   /// Progrès du fond d'écran (0.0 à 1.0)
   final double backgroundProgress;
 
-  /// Indique s'il faut naviguer vers l'écran suivant
+  /// Indique si on doit naviguer vers l'écran suivant
   final bool shouldNavigate;
 
-  /// Message d'erreur d'initialisation
-  final String? initializationError;
-
   const SplashState({
-    required this.isLoading,
-    required this.isInitialized,
-    required this.animationPhase,
-    required this.backgroundProgress,
-    required this.shouldNavigate,
+    this.animationPhase = SplashAnimationPhase.initial,
+    this.isLoading = false,
+    this.isInitialized = false,
     this.initializationError,
+    this.backgroundProgress = 0.0,
+    this.shouldNavigate = false,
   });
 
-  /// État initial du splash
+  /// État initial
   factory SplashState.initial() {
     return const SplashState(
-      isLoading: false,
-      isInitialized: false,
       animationPhase: SplashAnimationPhase.initial,
+      isLoading: true,
+      isInitialized: false,
+      initializationError: null,
       backgroundProgress: 0.0,
       shouldNavigate: false,
-      initializationError: null,
     );
   }
 
-  /// Créer une copie de l'état avec des modifications
+  /// Créer une copie avec des modifications
   SplashState copyWith({
+    SplashAnimationPhase? animationPhase,
     bool? isLoading,
     bool? isInitialized,
-    SplashAnimationPhase? animationPhase,
+    String? initializationError,
     double? backgroundProgress,
     bool? shouldNavigate,
-    String? initializationError,
   }) {
     return SplashState(
+      animationPhase: animationPhase ?? this.animationPhase,
       isLoading: isLoading ?? this.isLoading,
       isInitialized: isInitialized ?? this.isInitialized,
-      animationPhase: animationPhase ?? this.animationPhase,
+      initializationError: initializationError ?? this.initializationError,
       backgroundProgress: backgroundProgress ?? this.backgroundProgress,
       shouldNavigate: shouldNavigate ?? this.shouldNavigate,
-      initializationError: initializationError ?? this.initializationError,
     );
   }
 
-  /// Vérifier si le splash est prêt à naviguer
+  /// Vérifier s'il y a une erreur d'initialisation
+  bool get hasInitializationError => initializationError != null;
+
+  /// Vérifier si on est prêt à naviguer
   bool get isReadyToNavigate =>
       isInitialized &&
       animationPhase == SplashAnimationPhase.completed &&
-      shouldNavigate;
-
-  /// Vérifier s'il y a une erreur d'initialisation
-  bool get hasInitializationError =>
-      initializationError != null && initializationError!.isNotEmpty;
+      !isLoading;
 
   @override
   List<Object?> get props => [
+    animationPhase,
     isLoading,
     isInitialized,
-    animationPhase,
+    initializationError,
     backgroundProgress,
     shouldNavigate,
-    initializationError,
   ];
 
   @override
   String toString() {
     return 'SplashState { '
+        'animationPhase: $animationPhase, '
         'isLoading: $isLoading, '
         'isInitialized: $isInitialized, '
-        'animationPhase: $animationPhase, '
+        'initializationError: $initializationError, '
         'backgroundProgress: $backgroundProgress, '
-        'shouldNavigate: $shouldNavigate, '
-        'initializationError: $initializationError '
+        'shouldNavigate: $shouldNavigate '
         '}';
   }
 }

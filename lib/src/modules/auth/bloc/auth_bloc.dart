@@ -81,7 +81,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion réussie');
-        // L'état sera mis à jour via AuthUserChanged
+        emit(state.authenticated(user));
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion Firebase: ${e.code}', e);
@@ -112,7 +112,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Inscription réussie');
-        // L'état sera mis à jour via AuthUserChanged
+        emit(state.authenticated(user));
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur d\'inscription Firebase: ${e.code}', e);
@@ -139,7 +139,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion anonyme réussie');
-        // L'état sera mis à jour via AuthUserChanged
+        emit(state.authenticated(user));
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion anonyme: ${e.code}', e);
@@ -228,7 +228,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion par téléphone réussie');
-        // L'état sera mis à jour via AuthUserChanged
+        emit(state.authenticated(user));
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion par téléphone: ${e.code}', e);
@@ -284,7 +284,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       _logger.info('BLoC: Profil utilisateur mis à jour');
-      // L'état sera mis à jour via AuthUserChanged
+      emit(state.authenticated(state.user!));
     } catch (e) {
       _logger.error('BLoC: Erreur de mise à jour du profil: $e', e);
       emit(state.error(message: 'Erreur lors de la mise à jour du profil'));
@@ -353,7 +353,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _authRepository.signOut();
 
       _logger.info('BLoC: Déconnexion réussie');
-      // L'état sera mis à jour via AuthUserChanged
     } catch (e) {
       _logger.error('BLoC: Erreur de déconnexion: $e', e);
       emit(state.error(message: 'Erreur lors de la déconnexion'));
