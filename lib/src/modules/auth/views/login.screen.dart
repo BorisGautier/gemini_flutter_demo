@@ -120,9 +120,8 @@ class _LoginScreenState extends State<LoginScreen>
               message: state.errorMessage!,
               type: SnackbarType.error,
             );
-          } else if (state.isAuthenticated) {
-            context.pushNamedAndRemoveUntil(AppRoutes.home);
-          }
+          } 
+          // Navigation supprimée - AppNavigationManager s'en occupe
         },
         child: Container(
           decoration: BoxDecoration(
