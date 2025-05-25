@@ -170,7 +170,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   Future<void> _pickImage() async {
     final l10n = KartiaLocalizations.of(context);
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder:
