@@ -66,25 +66,34 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
   // Navigation
   bool _hasNavigated = false;
+  bool _canNavigate = false; // ✅ CORRECTION: Contrôle de la navigation
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    _startNavigationTimer(); // TIMER DE NAVIGATION DIRECT
+    _startNavigationTimer(); // ✅ CORRECTION: Timer plus long
   }
 
   void _startNavigationTimer() {
-    // Navigation forcée après 3.5 secondes, peu importe l'état du bloc
-    Future.delayed(const Duration(milliseconds: 4000), () {
-      if (mounted && !_hasNavigated) {
-        _navigateToNextScreen();
+    // ✅ CORRECTION: Timer de navigation plus long (6 secondes minimum)
+    Future.delayed(const Duration(milliseconds: 6000), () {
+      if (mounted) {
+        setState(() {
+          _canNavigate = true;
+        });
+        // Attendre encore un peu pour que les animations soient bien visibles
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted && !_hasNavigated) {
+            _navigateToNextScreen();
+          }
+        });
       }
     });
   }
 
   void _navigateToNextScreen() {
-    if (_hasNavigated) return;
+    if (_hasNavigated || !_canNavigate) return;
 
     setState(() {
       _hasNavigated = true;
@@ -93,75 +102,60 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     // Récupérer l'état d'authentification
     final authState = context.read<AuthBloc>().state;
 
+    // ✅ CORRECTION: Navigation plus précise selon l'état
+    Widget nextScreen;
     if (authState.isAuthenticated) {
-      // Naviguer vers Home
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder:
-              (_) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: context.read<AuthBloc>()),
-                ],
-                child: const HomeScreen(),
-              ),
-        ),
-        (route) => false,
-      );
+      nextScreen = const HomeScreen();
+    } else if (authState.isEmailNotVerified && authState.user != null) {
+      // Si l'email n'est pas vérifié, laisser AppNavigationManager gérer
+      return;
     } else {
-      // Naviguer vers Login
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder:
-              (_) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: context.read<AuthBloc>()),
-                ],
-                child: const LoginScreen(),
-              ),
-        ),
-        (route) => false,
-      );
+      nextScreen = const LoginScreen();
     }
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   void _initializeAnimations() {
-    // Contrôleur principal (durée totale)
+    // ✅ CORRECTION: Durées d'animation plus longues
     _masterController = AnimationController(
-      duration: const Duration(milliseconds: 4000),
+      duration: const Duration(milliseconds: 5000), // Plus long
       vsync: this,
     );
 
-    // Contrôleur pour le logo
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 3000), // Plus long
       vsync: this,
     );
 
-    // Contrôleur pour le texte
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2000), // Plus long
       vsync: this,
     );
 
-    // Contrôleur pour les particules
     _particlesController = AnimationController(
-      duration: const Duration(milliseconds: 5000),
+      duration: const Duration(milliseconds: 6000), // Plus long
       vsync: this,
     );
 
-    // Contrôleur pour le shimmer
     _shimmerController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 3000), // Plus long
       vsync: this,
     );
 
-    // Contrôleur pour la progression
     _progressController = AnimationController(
-      duration: const Duration(milliseconds: 3500),
+      duration: const Duration(milliseconds: 5500), // Plus long
       vsync: this,
     );
 
-    // Contrôleur pour l'effet de pulsation
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -256,22 +250,22 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   }
 
   void _startAnimations() {
-    // Démarrer les animations en cascade
+    // ✅ CORRECTION: Démarrer les animations en cascade avec des délais plus longs
     _masterController.forward();
     _particlesController.repeat();
     _shimmerController.repeat();
     _progressController.forward();
 
-    // Logo après 400ms
-    Future.delayed(const Duration(milliseconds: 400), () {
+    // Logo après 800ms
+    Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
         _logoController.forward();
         _pulseController.repeat(reverse: true);
       }
     });
 
-    // Texte après 900ms
-    Future.delayed(const Duration(milliseconds: 900), () {
+    // Texte après 1500ms
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) _textController.forward();
     });
   }
@@ -303,8 +297,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
             _showErrorDialog(context, l10n, state.initializationError!);
           }
 
-          // Navigation anticipée si le bloc est prêt avant le timer
-          if (state.isReadyToNavigate && !_hasNavigated) {
+          // ✅ CORRECTION: Navigation seulement si le timer est écoulé ET le bloc est prêt
+          if (state.isReadyToNavigate && _canNavigate && !_hasNavigated) {
             _navigateToNextScreen();
           }
         },
