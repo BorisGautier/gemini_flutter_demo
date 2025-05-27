@@ -22,6 +22,9 @@ enum AuthStatus {
 
   /// Erreur d'authentification
   error,
+
+  /// ✅ NOUVEAU: Email non vérifié
+  emailNotVerified,
 }
 
 /// État d'authentification
@@ -104,6 +107,17 @@ class AuthState extends Equatable {
     );
   }
 
+  /// ✅ NOUVEAU: État d'email non vérifié
+  AuthState emailNotVerified(UserModel user) {
+    return copyWith(
+      status: AuthStatus.emailNotVerified,
+      user: user,
+      isLoading: false,
+      errorMessage: null,
+      errorCode: null,
+    );
+  }
+
   /// État d'erreur
   AuthState error({required String message, String? code}) {
     return copyWith(
@@ -163,6 +177,9 @@ class AuthState extends Equatable {
 
   /// Vérifier si l'utilisateur n'est pas connecté
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;
+
+  /// ✅ NOUVEAU: Vérifier si l'email n'est pas vérifié
+  bool get isEmailNotVerified => status == AuthStatus.emailNotVerified;
 
   /// Vérifier s'il y a une erreur
   bool get hasError => status == AuthStatus.error && errorMessage != null;

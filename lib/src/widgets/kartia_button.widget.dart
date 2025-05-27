@@ -396,11 +396,11 @@ class _KartiaButtonState extends State<KartiaButton>
   double _getIconSizeForSize() {
     switch (widget.size) {
       case KartiaButtonSize.small:
-        return 48;
+        return 15;
       case KartiaButtonSize.medium:
-        return 56;
+        return 23;
       case KartiaButtonSize.large:
-        return 64;
+        return 31;
     }
   }
 

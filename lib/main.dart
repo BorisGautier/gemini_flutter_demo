@@ -15,6 +15,7 @@ import 'package:kartia/src/core/utils/configs.util.dart';
 import 'package:kartia/src/init.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:kartia/src/modules/gps/bloc/gps_bloc.dart';
+import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kartia/src/core/di/di.dart' as di;
 
@@ -48,8 +49,17 @@ void main() async {
 
       runApp(
         AppInitializer(
-          child: BlocProvider(
-            create: (_) => di.getIt<GpsBloc>(),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider(create: (_) => di.getIt<GpsBloc>()),
+              BlocProvider(
+                create: (_) {
+                  final authBloc = di.getIt<AuthBloc>();
+                  authBloc.add(const AuthInitialized());
+                  return authBloc;
+                },
+              ),
+            ],
             child: const MyApp(),
           ),
         ),
