@@ -47,7 +47,7 @@ dependencies:
   http: ^1.4.0
   hydrated_bloc: ^10.0.0
   image_picker: ^1.1.2
-  intl: ^0.19.0
+  intl: ^0.20.2
   intl_phone_field: ^3.2.0
   intl_utils: ^2.8.10
   json_annotation: ^4.9.0
