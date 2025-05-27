@@ -33,6 +33,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInAnonymouslyRequested>(_onSignInAnonymouslyRequested);
     on<AuthVerifyPhoneNumberRequested>(_onVerifyPhoneNumberRequested);
     on<AuthPhoneCodeSent>(_onPhoneCodeSent);
+    on<AuthPhoneVerificationFailed>(_onPhoneVerificationFailed);
     on<AuthSignInWithPhoneNumberRequested>(_onSignInWithPhoneNumberRequested);
     on<AuthPasswordResetRequested>(_onPasswordResetRequested);
     on<AuthUpdateUserProfileRequested>(_onUpdateUserProfileRequested);
@@ -49,8 +50,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     // Écouter les changements d'état d'authentification
     _userSubscription = _authRepository.authStateChanges.listen(
-      (user) => add(AuthUserChanged(user)),
+      (user) {
+        _logger.info('BLoC: Changement d\'utilisateur détecté: ${user?.uid}');
+        add(AuthUserChanged(user));
+      },
+      onError: (error) {
+        _logger.error('BLoC: Erreur dans authStateChanges: $error', error);
+      },
     );
+
+    // ✅ NOUVEAU : Vérifier l'utilisateur actuel au démarrage
+    final currentUser = _authRepository.currentUser;
+    if (currentUser != null) {
+      _logger.info(
+        'BLoC: Utilisateur existant trouvé au démarrage: ${currentUser.uid}',
+      );
+      add(AuthUserChanged(currentUser));
+    } else {
+      _logger.info('BLoC: Aucun utilisateur trouvé au démarrage');
+      emit(state.unauthenticated());
+    }
   }
 
   /// Gérer les changements d'utilisateur
@@ -58,8 +77,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _logger.info('BLoC: Changement d\'utilisateur: ${event.user?.uid}');
 
     if (event.user != null) {
-      emit(state.authenticated(event.user!));
+      // ✅ AMÉLIORATION : Logique plus claire pour la vérification d'email
+      final user = event.user!;
+
+      // Si l'utilisateur est anonyme ou a un numéro de téléphone, pas besoin de vérification email
+      if (user.isAnonymous || user.phoneNumber != null) {
+        _logger.info('BLoC: Utilisateur authentifié (anonyme ou téléphone)');
+        emit(state.authenticated(user));
+      }
+      // Si l'utilisateur a un email mais qu'il n'est pas vérifié
+      else if (user.email != null && !user.emailVerified) {
+        _logger.info(
+          'BLoC: Email non vérifié, utilisateur en attente de vérification',
+        );
+        emit(state.emailNotVerified(user));
+      }
+      // Utilisateur complètement authentifié
+      else {
+        _logger.info('BLoC: Utilisateur authentifié avec succès');
+        emit(state.authenticated(user));
+      }
     } else {
+      _logger.info('BLoC: Aucun utilisateur, état non authentifié');
       emit(state.unauthenticated());
     }
   }
@@ -81,7 +120,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion réussie');
-        emit(state.authenticated(user));
+        // ✅ L'état sera mis à jour via AuthUserChanged qui vérifie l'email
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion Firebase: ${e.code}', e);
@@ -112,7 +151,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Inscription réussie');
-        emit(state.authenticated(user));
+        // ✅ L'état sera mis à jour via AuthUserChanged qui détectera l'email non vérifié
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur d\'inscription Firebase: ${e.code}', e);
@@ -139,7 +178,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion anonyme réussie');
-        emit(state.authenticated(user));
+        // L'état sera mis à jour via AuthUserChanged
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion anonyme: ${e.code}', e);
@@ -173,9 +212,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             'BLoC: Échec de la vérification du téléphone: ${e.code}',
             e,
           );
-          add(AuthErrorCleared());
-          emit(
-            state.error(
+          // ✅ CORRECTION 2: Ne pas appeler AuthErrorCleared, juste émettre l'erreur
+          add(
+            AuthPhoneVerificationFailed(
               message: _getLocalizedFirebaseError(e.code),
               code: e.code,
             ),
@@ -211,6 +250,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
+  /// ✅ CORRECTION 3: Nouveau gestionnaire pour les erreurs de vérification téléphone
+  void _onPhoneVerificationFailed(
+    AuthPhoneVerificationFailed event,
+    Emitter<AuthState> emit,
+  ) {
+    _logger.error('BLoC: Erreur de vérification téléphone: ${event.message}');
+    emit(state.error(message: event.message, code: event.code));
+  }
+
   /// Connexion avec le code SMS
   Future<void> _onSignInWithPhoneNumberRequested(
     AuthSignInWithPhoneNumberRequested event,
@@ -228,7 +276,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion par téléphone réussie');
-        emit(state.authenticated(user));
+        // L'état sera mis à jour via AuthUserChanged
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion par téléphone: ${e.code}', e);
@@ -284,7 +332,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       _logger.info('BLoC: Profil utilisateur mis à jour');
-      emit(state.authenticated(state.user!));
+      // L'état sera mis à jour via AuthUserChanged
     } catch (e) {
       _logger.error('BLoC: Erreur de mise à jour du profil: $e', e);
       emit(state.error(message: 'Erreur lors de la mise à jour du profil'));
@@ -353,6 +401,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _authRepository.signOut();
 
       _logger.info('BLoC: Déconnexion réussie');
+      // L'état sera mis à jour via AuthUserChanged
     } catch (e) {
       _logger.error('BLoC: Erreur de déconnexion: $e', e);
       emit(state.error(message: 'Erreur lors de la déconnexion'));
@@ -385,7 +434,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   /// Effacer les erreurs
   void _onErrorCleared(AuthErrorCleared event, Emitter<AuthState> emit) {
     if (state.user != null) {
-      emit(state.authenticated(state.user!));
+      if (state.status == AuthStatus.emailNotVerified) {
+        emit(state.emailNotVerified(state.user!));
+      } else {
+        emit(state.authenticated(state.user!));
+      }
     } else {
       emit(state.unauthenticated());
     }
@@ -416,6 +469,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return 'ID de vérification invalide.';
       case 'requires-recent-login':
         return 'Cette opération nécessite une connexion récente.';
+      case 'invalid-phone-number':
+        return 'Numéro de téléphone invalide.';
+      case 'quota-exceeded':
+        return 'Quota de SMS dépassé. Réessayez plus tard.';
       default:
         return 'Une erreur s\'est produite. Veuillez réessayer.';
     }

@@ -189,10 +189,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     }
   }
 
-  void _handleGoogleSignIn() {
-    context.read<AuthBloc>().add(const AuthSignInWithGoogleRequested());
-  }
-
   void _navigateToLogin() {
     context.pop();
   }
@@ -223,14 +219,22 @@ class _RegisterScreenState extends State<RegisterScreen>
               message: state.errorMessage!,
               type: SnackbarType.error,
             );
+          } else if (state.isEmailNotVerified && state.user != null) {
+            // Email non vérifié après inscription - ne rien faire ici
+            // AppNavigationManager va gérer la navigation automatiquement
+            KartiaSnackbar.show(
+              context,
+              message: 'Compte créé ! Vérifiez votre email.',
+              type: SnackbarType.success,
+            );
+            context.pop();
           } else if (state.isAuthenticated) {
-            // Afficher un message de succès
+            // Utilisateur complètement authentifié (téléphone ou email vérifié)
             KartiaSnackbar.show(
               context,
               message: 'Bienvenue ${state.user?.displayName ?? ''} !',
               type: SnackbarType.success,
             );
-            context.pushNamedAndRemoveUntil(AppRoutes.home);
           }
         },
         child: Container(
@@ -634,20 +638,6 @@ class _RegisterScreenState extends State<RegisterScreen>
             // Boutons d'authentification alternative
             Row(
               children: [
-                // Google Sign In
-                Expanded(
-                  child: KartiaButton(
-                    text: l10n.google,
-                    icon: Icons.g_mobiledata,
-                    onPressed: isLoading ? null : _handleGoogleSignIn,
-                    type: KartiaButtonType.outline,
-                    size: KartiaButtonSize.large,
-                    borderColor: AppColors.secondary,
-                    textColor: AppColors.secondary,
-                  ),
-                ),
-                SizedBox(width: widthSpace.width!),
-
                 // Phone Auth
                 Expanded(
                   child: KartiaButton(

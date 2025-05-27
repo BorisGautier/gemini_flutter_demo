@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/routes/app.routes.dart';
 import 'package:kartia/src/core/utils/colors.util.dart';
 import 'package:kartia/src/core/utils/sizes.util.dart';
-import 'package:kartia/src/core/utils/validators.util.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
 import 'package:kartia/src/widgets/kartia_button.widget.dart';
 import 'package:kartia/src/widgets/kartia_snackbar.widget.dart';
@@ -26,6 +26,9 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
   final _codeFormKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _codeController = TextEditingController();
+
+  // Variable pour stocker le numéro complet avec indicatif
+  String _completePhoneNumber = '';
 
   late AnimationController _fadeAnimationController;
   late AnimationController _slideAnimationController;
@@ -179,9 +182,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
 
   void _handleSendCode() {
     if (_phoneFormKey.currentState?.validate() ?? false) {
-      final phoneNumber = '+237${_phoneController.text.trim()}';
       context.read<AuthBloc>().add(
-        AuthVerifyPhoneNumberRequested(phoneNumber: phoneNumber),
+        AuthVerifyPhoneNumberRequested(phoneNumber: _completePhoneNumber),
       );
       _startTimer();
     }
@@ -208,6 +210,20 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
     context.pop();
   }
 
+  // ✅ CORRECTION: Méthode pour revenir à l'étape du numéro de téléphone
+  void _backToPhoneNumber() {
+    // Effacer l'erreur et revenir à l'état initial
+    context.read<AuthBloc>().add(const AuthErrorCleared());
+    _codeController.clear();
+    _timer?.cancel();
+    _timerAnimationController.reset();
+    _transitionAnimationController.reverse();
+    setState(() {
+      _canResend = false;
+      _remainingSeconds = 60;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = KartiaLocalizations.of(context);
@@ -231,12 +247,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
       extendBodyBehindAppBar: true,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
+          // ✅ CORRECTION: Gestion améliorée des erreurs
           if (state.hasError) {
-            KartiaSnackbar.show(
-              context,
-              message: state.errorMessage!,
-              type: SnackbarType.error,
-            );
+            // Afficher l'erreur dans un dialog plutôt qu'un snackbar
+            _showErrorDialog(context, l10n, state.errorMessage!);
           } else if (state.isAuthenticated) {
             KartiaSnackbar.show(
               context,
@@ -302,6 +316,49 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
           ),
         ),
       ),
+    );
+  }
+
+  // ✅ CORRECTION: Nouvelle méthode pour afficher les erreurs dans un dialog
+  void _showErrorDialog(
+    BuildContext context,
+    KartiaLocalizations l10n,
+    String errorMessage,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(10),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.error_outline, color: AppColors.error),
+                ),
+                SizedBox(width: 12),
+                const Text('Erreur'),
+              ],
+            ),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Effacer l'erreur
+                  context.read<AuthBloc>().add(const AuthErrorCleared());
+                },
+                child: Text('OK'),
+              ),
+            ],
+          ),
     );
   }
 
@@ -414,7 +471,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                           ),
                           SizedBox(height: 4),
                           Text(
-                            '+237 ${_phoneController.text}',
+                            _completePhoneNumber,
                             style: TextStyle(
                               color: AppColors.primary,
                               fontSize: 16,
@@ -469,85 +526,104 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
             key: _phoneFormKey,
             child: Column(
               children: [
-                // Champ numéro de téléphone avec indicatif pays
-                Row(
-                  children: [
-                    // Indicatif pays avec design amélioré
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primaryPurple.withAlpha(10),
-                            AppColors.primary.withAlpha(10),
-                          ],
-                        ),
-                        border: Border.all(
-                          color: AppColors.primaryPurple.withAlpha(30),
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(10),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Text('🇨🇲', style: TextStyle(fontSize: 20)),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            '+237',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryPurple,
-                            ),
-                          ),
-                        ],
+                // Champ numéro de téléphone avec intl_phone_field
+                IntlPhoneField(
+                  controller: _phoneController,
+                  enabled: !isLoading,
+                  decoration: InputDecoration(
+                    labelText: l10n.phoneNumber,
+                    labelStyle: TextStyle(
+                      color: AppColors.primaryPurple,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    hintText: '6XX XXX XXX',
+                    hintStyle: TextStyle(
+                      color: AppColors.mediumGrey,
+                      fontSize: 16,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryPurple.withAlpha(30),
                       ),
                     ),
-                    SizedBox(width: widthSpace.width!),
-
-                    // Champ de saisie du numéro
-                    Expanded(
-                      child: KartiaTextField(
-                        controller: _phoneController,
-                        hintText: '6XX XXX XXX',
-                        keyboardType: TextInputType.phone,
-                        enabled: !isLoading,
-                        maxLength: 9,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(9),
-                          _PhoneNumberFormatter(),
-                        ],
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return l10n.validationPhoneRequired;
-                          }
-                          if (!Validators.isValidTelephone(
-                            value!.replaceAll(' ', ''),
-                          )) {
-                            return l10n.validationPhoneInvalid;
-                          }
-                          return null;
-                        },
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryPurple.withAlpha(30),
                       ),
                     ),
-                  ],
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryPurple,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.error, width: 1),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.error, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: AppColors.primaryPurple.withAlpha(5),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primaryPurple,
+                  ),
+                  initialCountryCode: 'CM', // Cameroun par défaut
+                  dropdownTextStyle: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primaryPurple,
+                  ),
+                  flagsButtonPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                  ),
+                  showDropdownIcon: true,
+                  dropdownIcon: Icon(
+                    Icons.arrow_drop_down,
+                    color: AppColors.primaryPurple,
+                  ),
+                  invalidNumberMessage: l10n.validationPhoneInvalid,
+                  // Désactiver la validation automatique pendant la saisie
+                  autovalidateMode: AutovalidateMode.disabled,
+                  showCountryFlag: true,
+                  onChanged: (phone) {
+                    // Capturer le numéro complet sans déclencher d'exception
+                    setState(() {
+                      _completePhoneNumber = phone.completeNumber;
+                    });
+                  },
+                  validator: (phone) {
+                    if (phone == null || phone.number.isEmpty) {
+                      return l10n.validationPhoneRequired;
+                    }
+                    // Validation plus permissive - vérifier seulement la longueur minimale
+                    if (phone.number.length < 8) {
+                      return l10n.validationPhoneInvalid;
+                    }
+                    // Optionnel : validation plus stricte seulement à la soumission
+                    try {
+                      if (!phone.isValidNumber()) {
+                        return l10n.validationPhoneInvalid;
+                      }
+                    } catch (e) {
+                      // Ignorer les exceptions de validation pendant la saisie
+                      return null;
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: heightSpace.height! * 2),
 
@@ -761,25 +837,13 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                     ),
                     SizedBox(height: heightSpace.height!),
 
-                    // Bouton modifier le numéro
+                    // ✅ CORRECTION: Bouton modifier le numéro amélioré
                     KartiaButton(
                       text: l10n.changeNumber,
                       onPressed:
                           isLoading
                               ? null
-                              : () {
-                                context.read<AuthBloc>().add(
-                                  const AuthErrorCleared(),
-                                );
-                                _codeController.clear();
-                                _timer?.cancel();
-                                _timerAnimationController.reset();
-                                _transitionAnimationController.reverse();
-                                setState(() {
-                                  _canResend = false;
-                                  _remainingSeconds = 60;
-                                });
-                              },
+                              : _backToPhoneNumber, // Utiliser la nouvelle méthode
                       type: KartiaButtonType.text,
                       textColor: AppColors.mediumGrey,
                     ),
@@ -790,31 +854,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
           ),
         );
       },
-    );
-  }
-}
-
-// Formatter pour le numéro de téléphone
-class _PhoneNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final text = newValue.text.replaceAll(' ', '');
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < text.length; i++) {
-      if (i == 3 || i == 6) {
-        buffer.write(' ');
-      }
-      buffer.write(text[i]);
-    }
-
-    final formattedText = buffer.toString();
-    return TextEditingValue(
-      text: formattedText,
-      selection: TextSelection.collapsed(offset: formattedText.length),
     );
   }
 }

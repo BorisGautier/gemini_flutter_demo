@@ -2,27 +2,25 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kartia/src/app_navigation_manager.dart';
-import 'package:kartia/src/core/di/di.dart';
-import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
 import 'package:kartia/src/modules/gps/bloc/gps_bloc.dart';
 import 'package:kartia/src/modules/gps/views/gps.screen.dart';
 
 class GpsLoadingScreen extends StatelessWidget {
   const GpsLoadingScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: BlocBuilder<GpsBloc, GpsState>(
-        builder: (context, state) {
-          return state.isAllGranted
-              ? BlocProvider<AuthBloc>(
-                create: (context) => getIt<AuthBloc>()..add(AuthInitialized()),
-                child: const AppNavigationManager(),
-              )
-              : const GpsScreen();
-        },
-      ),
+    return BlocBuilder<GpsBloc, GpsState>(
+      builder: (context, gpsState) {
+        if (gpsState.isAllGranted) {
+          // Toutes les permissions sont accordées, on peut retourner à AppNavigationManager
+          // qui va gérer l'authentification
+          return const SizedBox.shrink(); // Widget vide, AppNavigationManager va prendre le relais
+        }
+
+        // Sinon, afficher l'écran de demande de permissions GPS
+        return const GpsScreen();
+      },
     );
   }
 }

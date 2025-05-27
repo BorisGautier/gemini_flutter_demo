@@ -111,6 +111,21 @@ class AuthPhoneCodeSent extends AuthEvent {
   String toString() => 'AuthPhoneCodeSent { verificationId: $verificationId }';
 }
 
+/// ✅ NOUVEAU: Événement pour les erreurs de vérification téléphone
+class AuthPhoneVerificationFailed extends AuthEvent {
+  final String message;
+  final String? code;
+
+  const AuthPhoneVerificationFailed({required this.message, this.code});
+
+  @override
+  List<Object?> get props => [message, code];
+
+  @override
+  String toString() =>
+      'AuthPhoneVerificationFailed { message: $message, code: $code }';
+}
+
 /// Événement pour la connexion avec le code SMS
 class AuthSignInWithPhoneNumberRequested extends AuthEvent {
   final String verificationId;

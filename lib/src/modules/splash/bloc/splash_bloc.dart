@@ -38,7 +38,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       ),
     );
 
-    // Démarrer les animations avec des délais
+    // Démarrer les animations avec des délais plus longs
     _startAnimationSequence();
 
     // Démarrer l'initialisation en parallèle
@@ -59,12 +59,17 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       ),
     );
 
-    // Si les animations sont terminées et l'initialisation aussi, permettre la navigation
+    // ✅ CORRECTION: Attendre plus longtemps avant d'autoriser la navigation
     if (event.phase == SplashAnimationPhase.completed && state.isInitialized) {
-      _logger.info(
-        'SplashBloc: Animations et initialisation terminées, navigation autorisée',
-      );
-      emit(state.copyWith(shouldNavigate: true, isLoading: false));
+      // Attendre 2 secondes supplémentaires après la fin des animations
+      Timer(const Duration(milliseconds: 2000), () {
+        if (!isClosed) {
+          _logger.info(
+            'SplashBloc: Délai supplémentaire écoulé, navigation autorisée',
+          );
+          emit(state.copyWith(shouldNavigate: true, isLoading: false));
+        }
+      });
     }
   }
 
@@ -80,12 +85,16 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     if (event.success) {
       emit(state.copyWith(isInitialized: true, initializationError: null));
 
-      // Si les animations sont terminées aussi, permettre la navigation
+      // ✅ CORRECTION: Si les animations sont terminées aussi, attendre avant navigation
       if (state.animationPhase == SplashAnimationPhase.completed) {
-        _logger.info(
-          'SplashBloc: Initialisation et animations terminées, navigation autorisée',
-        );
-        emit(state.copyWith(shouldNavigate: true, isLoading: false));
+        Timer(const Duration(milliseconds: 2000), () {
+          if (!isClosed) {
+            _logger.info(
+              'SplashBloc: Délai supplémentaire écoulé après initialisation, navigation autorisée',
+            );
+            emit(state.copyWith(shouldNavigate: true, isLoading: false));
+          }
+        });
       }
     } else {
       emit(
@@ -108,10 +117,12 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     emit(state.copyWith(shouldNavigate: true, isLoading: false));
   }
 
-  /// Démarrer la séquence d'animations
+  /// Démarrer la séquence d'animations avec des délais plus longs
   void _startAnimationSequence() {
-    // Phase 1: Démarrer l'animation du logo après 500ms
-    Timer(const Duration(milliseconds: 500), () {
+    // ✅ CORRECTION: Délais plus longs pour les animations
+
+    // Phase 1: Démarrer l'animation du logo après 800ms
+    Timer(const Duration(milliseconds: 800), () {
       if (!isClosed) {
         add(
           const SplashAnimationPhaseChanged(SplashAnimationPhase.logoStarted),
@@ -119,8 +130,8 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       }
     });
 
-    // Phase 2: Démarrer l'animation du texte après 1500ms
-    Timer(const Duration(milliseconds: 1500), () {
+    // Phase 2: Démarrer l'animation du texte après 2000ms
+    Timer(const Duration(milliseconds: 2000), () {
       if (!isClosed) {
         add(
           const SplashAnimationPhaseChanged(SplashAnimationPhase.textStarted),
@@ -128,8 +139,8 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       }
     });
 
-    // Phase 3: Animation terminée après 3000ms
-    _animationTimer = Timer(const Duration(milliseconds: 3000), () {
+    // Phase 3: Animation terminée après 4500ms (au lieu de 3000ms)
+    _animationTimer = Timer(const Duration(milliseconds: 4500), () {
       if (!isClosed) {
         _logger.info('SplashBloc: Animations terminées');
         add(const SplashAnimationPhaseChanged(SplashAnimationPhase.completed));
@@ -137,9 +148,10 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     });
   }
 
-  /// Démarrer l'initialisation de l'application
+  /// Démarrer l'initialisation de l'application avec un délai plus long
   void _startInitialization() {
-    _initializationTimer = Timer(const Duration(milliseconds: 2000), () async {
+    // ✅ CORRECTION: Délai plus long pour l'initialisation (3 secondes au lieu de 2)
+    _initializationTimer = Timer(const Duration(milliseconds: 3000), () async {
       if (isClosed) return;
 
       try {
@@ -153,10 +165,10 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
           success = await DIManager.safeInit();
         }
 
-        // Autres tâches d'initialisation si nécessaire
+        // ✅ CORRECTION: Simuler d'autres initialisations plus longues
         if (success) {
           // Simuler d'autres initialisations (base de données, permissions, etc.)
-          await Future.delayed(const Duration(milliseconds: 500));
+          await Future.delayed(const Duration(milliseconds: 1500)); // Plus long
           _logger.info('SplashBloc: Initialisation de l\'application réussie');
         } else {
           _logger.error('SplashBloc: Échec de l\'initialisation du DI');
