@@ -9,7 +9,11 @@ import 'package:kartia/src/core/utils/sizes.util.dart';
 import 'package:kartia/src/core/utils/themes.util.dart';
 import 'package:kartia/src/modules/app/bloc/app_bloc.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
+import 'package:kartia/src/modules/home/bloc/home_bloc.dart';
+import 'package:kartia/src/modules/home/bloc/home_event.dart';
+import 'package:kartia/src/modules/home/bloc/home_state.dart';
 import 'package:kartia/src/widgets/kartia_button.widget.dart';
+import 'package:kartia/src/widgets/kartia_loading.widget.dart';
 
 /// Écran d'accueil principal de l'application
 class HomeScreen extends StatefulWidget {
@@ -35,13 +39,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<Offset> _actionsSlideAnimation;
   late Animation<Offset> _activitySlideAnimation;
 
-  int _selectedIndex = 0;
-
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _startAnimations();
+
+    // Initialiser le HomeBloc
+    context.read<HomeBloc>().add(const HomeInitialized());
   }
 
   void _initializeAnimations() {
@@ -157,24 +162,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    context.read<HomeBloc>().add(BottomNavItemSelected(index));
   }
 
   void _navigateToProfile() {
-    context.pushNamed(AppRoutes.profile);
+    Navigator.of(context).pushNamed(AppRoutes.profile);
   }
 
   void _toggleTheme() {
     final currentTheme = context.read<AppBloc>().state.themeData;
-    final appThemes = AppThemes.appThemeData;
+    final isDark = currentTheme!.brightness == Brightness.dark;
 
-    if (currentTheme == appThemes[AppTheme.lightTheme]) {
-      context.read<AppBloc>().add(ChangeTheme(AppTheme.darkTheme));
-    } else {
-      context.read<AppBloc>().add(ChangeTheme(AppTheme.lightTheme));
-    }
+    context.read<AppBloc>().add(
+      ChangeTheme(isDark ? AppTheme.lightTheme : AppTheme.darkTheme),
+    );
   }
 
   void _toggleLanguage() {
@@ -202,84 +203,160 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final l10n = KartiaLocalizations.of(context);
 
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        // Navigation supprimée - AppNavigationManager s'en occupe
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        if (state is HomeLoading) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor(context),
+            body: Center(
+              child: KartiaLoading.circular(
+                size: KartiaLoadingSize.large,
+                message: 'Chargement...',
+                color: AppColors.primary,
+              ),
+            ),
+          );
+        }
+
+        if (state is HomeError) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor(context),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Erreur de chargement',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.onSurfaceColor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.onSurfaceSecondaryColor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<HomeBloc>().add(const HomeInitialized());
+                    },
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (state is HomeLoaded) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor(context),
+            body: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: _buildBody(context, state, l10n),
+              ),
+            ),
+            bottomNavigationBar: _buildBottomNavigationBar(
+              context,
+              state,
+              l10n,
+            ),
+            floatingActionButton: ScaleTransition(
+              scale: _fabScaleAnimation,
+              child: FloatingActionButton(
+                onPressed: () => _onItemTapped(1),
+                backgroundColor: AppColors.primaryOrange,
+                child: Icon(Icons.explore_rounded, color: AppColors.white),
+              ),
+            ),
+          );
+        }
+
+        return const SizedBox.shrink();
       },
-      child: Scaffold(
-        body: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: _buildBody(l10n),
-          ),
-        ),
-        bottomNavigationBar: _buildBottomNavigationBar(l10n),
-        floatingActionButton: ScaleTransition(
-          scale: _fabScaleAnimation,
-          child: FloatingActionButton(
-            onPressed: () => _onItemTapped(1),
-            backgroundColor: AppColors.secondary,
-            child: Icon(Icons.explore_rounded, color: AppColors.white),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _buildBody(KartiaLocalizations l10n) {
-    switch (_selectedIndex) {
+  Widget _buildBody(
+    BuildContext context,
+    HomeLoaded state,
+    KartiaLocalizations l10n,
+  ) {
+    switch (state.selectedTabIndex) {
       case 0:
-        return _buildHomeTab(l10n);
+        return _buildHomeTab(context, state, l10n);
       case 1:
-        return _buildServicesTab(l10n);
+        return _buildServicesTab(context, state, l10n);
       case 2:
-        return _buildSettingsTab(l10n);
+        return _buildSettingsTab(context, l10n);
       default:
-        return _buildHomeTab(l10n);
+        return _buildHomeTab(context, state, l10n);
     }
   }
 
-  Widget _buildHomeTab(KartiaLocalizations l10n) {
+  Widget _buildHomeTab(
+    BuildContext context,
+    HomeLoaded state,
+    KartiaLocalizations l10n,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.primary.withAlpha(15),
-            AppColors.secondary.withAlpha(8),
-            Colors.white,
+            isDark ? AppColors.darkBackground : AppColors.primary.withAlpha(20),
+            isDark
+                ? AppColors.darkSurface.withAlpha(50)
+                : AppColors.primaryOrange.withAlpha(10),
+            AppColors.backgroundColor(context),
           ],
           stops: const [0.0, 0.3, 1.0],
         ),
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(fixPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SlideTransition(
-                position: _headerSlideAnimation,
-                child: _buildHeader(l10n),
-              ),
-              SizedBox(height: heightSpace.height! * 2),
-              SlideTransition(
-                position: _welcomeSlideAnimation,
-                child: _buildWelcomeCard(l10n),
-              ),
-              SizedBox(height: heightSpace.height! * 2),
-              SlideTransition(
-                position: _actionsSlideAnimation,
-                child: _buildQuickActions(l10n),
-              ),
-              SizedBox(height: heightSpace.height! * 2),
-              SlideTransition(
-                position: _activitySlideAnimation,
-                child: _buildRecentActivity(l10n),
-              ),
-            ],
+        child: RefreshIndicator(
+          onRefresh: () async {
+            context.read<HomeBloc>().add(const RefreshRequested());
+          },
+          color: AppColors.primary,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(fixPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SlideTransition(
+                  position: _headerSlideAnimation,
+                  child: _buildHeader(l10n),
+                ),
+                SizedBox(height: heightSpace.height! * 2),
+                SlideTransition(
+                  position: _welcomeSlideAnimation,
+                  child: _buildWelcomeCard(l10n),
+                ),
+                SizedBox(height: heightSpace.height! * 2),
+                SlideTransition(
+                  position: _actionsSlideAnimation,
+                  child: _buildQuickActions(l10n, state),
+                ),
+                SizedBox(height: heightSpace.height! * 2),
+                SlideTransition(
+                  position: _activitySlideAnimation,
+                  child: _buildRecentActivity(l10n, state),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -294,11 +371,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfaceColor(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow2,
+                color: AppColors.shadowColor(context),
                 blurRadius: 15,
                 spreadRadius: 3,
                 offset: const Offset(0, 5),
@@ -315,11 +392,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(30),
-                      gradient: AppColors.primaryGradient,
+                      gradient:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? LinearGradient(
+                                colors: [
+                                  AppColors.primary.withAlpha(120),
+                                  AppColors.primaryOrange.withAlpha(100),
+                                ],
+                              )
+                              : AppColors.primaryGradient,
                     ),
                     child: CircleAvatar(
                       radius: 25,
-                      backgroundColor: AppColors.white,
+                      backgroundColor: AppColors.surfaceColor(context),
                       backgroundImage:
                           user?.photoURL != null
                               ? NetworkImage(user!.photoURL!)
@@ -332,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.primary,
+                                  fontFamily: "OpenSans-Bold",
                                 ),
                               )
                               : null,
@@ -349,15 +435,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Text(
                       user?.isAnonymous == true ? l10n.guest : l10n.hello,
                       style: TextStyle(
-                        color: AppColors.mediumGrey,
+                        color: AppColors.onSurfaceSecondaryColor(context),
                         fontSize: 14,
+                        fontFamily: "OpenSans",
                       ),
                     ),
                     Text(
                       user?.displayNameOrEmail ?? l10n.user,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.black,
+                        color: AppColors.onSurfaceColor(context),
+                        fontFamily: "OpenSans-Bold",
                       ),
                     ),
                   ],
@@ -374,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [AppColors.warning, AppColors.secondaryYellow],
                     ),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   _buildHeaderButton(
                     icon: Icons.language_rounded,
                     onPressed: _toggleLanguage,
@@ -424,11 +512,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildWelcomeCard(KartiaLocalizations l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
+        gradient:
+            isDark
+                ? LinearGradient(
+                  colors: [
+                    AppColors.primary.withAlpha(120),
+                    AppColors.primaryOrange.withAlpha(100),
+                  ],
+                )
+                : AppColors.primaryGradient,
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
@@ -447,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(20),
+                  color: AppColors.white.withAlpha(40),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
@@ -456,7 +554,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   size: 28,
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   l10n.welcomeToKartia,
@@ -464,21 +562,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     color: AppColors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
+                    fontFamily: "OpenSans-Bold",
                   ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             l10n.discoverServices,
             style: TextStyle(
-              color: AppColors.white.withAlpha(90),
+              color: AppColors.white.withAlpha(220),
               fontSize: 16,
               height: 1.4,
+              fontFamily: "OpenSans",
             ),
           ),
-          SizedBox(height: 24),
+          const SizedBox(height: 24),
           KartiaButton(
             text: l10n.explore,
             onPressed: () => _onItemTapped(1),
@@ -493,18 +593,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildQuickActions(KartiaLocalizations l10n) {
+  Widget _buildQuickActions(KartiaLocalizations l10n, HomeLoaded state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfaceColor(context),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow2,
+                color: AppColors.shadowColor(context),
                 blurRadius: 10,
                 spreadRadius: 2,
                 offset: const Offset(0, 3),
@@ -516,9 +616,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.secondary, AppColors.primaryPurple],
-                  ),
+                  gradient: AppColors.secondaryGradient,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -527,12 +625,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   size: 20,
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Text(
                 l10n.quickActions,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceColor(context),
+                  fontFamily: "OpenSans-Bold",
+                ),
               ),
             ],
           ),
@@ -546,48 +646,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           childAspectRatio: 1.5,
-          children: [
-            _buildActionCard(
-              l10n,
-              icon: Icons.map_rounded,
-              title: l10n.cityAiGuide,
-              subtitle: l10n.cityAiGuideDesc,
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.info],
-              ),
-              onTap: () => _showComingSoon(l10n, l10n.cityAiGuide),
-            ),
-            _buildActionCard(
-              l10n,
-              icon: Icons.health_and_safety_rounded,
-              title: l10n.santeMap,
-              subtitle: l10n.santeMapDesc,
-              gradient: LinearGradient(
-                colors: [AppColors.success, AppColors.info],
-              ),
-              onTap: () => _showComingSoon(l10n, l10n.santeMap),
-            ),
-            _buildActionCard(
-              l10n,
-              icon: Icons.volunteer_activism_rounded,
-              title: l10n.civact,
-              subtitle: l10n.civactDesc,
-              gradient: LinearGradient(
-                colors: [AppColors.secondary, AppColors.warning],
-              ),
-              onTap: () => _showComingSoon(l10n, l10n.civact),
-            ),
-            _buildActionCard(
-              l10n,
-              icon: Icons.shopping_cart_rounded,
-              title: l10n.cartoPrix,
-              subtitle: l10n.cartoPrixDesc,
-              gradient: LinearGradient(
-                colors: [AppColors.secondaryYellow, AppColors.warning],
-              ),
-              onTap: () => _showComingSoon(l10n, l10n.cartoPrix),
-            ),
-          ],
+          children:
+              state.quickActions.map((action) {
+                return _buildActionCard(
+                  l10n,
+                  icon: IconData(
+                    int.parse(action.iconCode),
+                    fontFamily: 'MaterialIcons',
+                  ),
+                  title: action.title,
+                  subtitle: action.description,
+                  gradient: LinearGradient(
+                    colors:
+                        action.gradientColors
+                            .map((color) => Color(color))
+                            .toList(),
+                  ),
+                  onTap: () => _showComingSoon(l10n, action.title),
+                  isAvailable: action.isAvailable,
+                );
+              }).toList(),
         ),
       ],
     );
@@ -600,17 +678,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required String subtitle,
     required LinearGradient gradient,
     required VoidCallback onTap,
+    bool isAvailable = false,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: AppColors.surfaceColor(context),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: gradient.colors.first.withAlpha(15),
+              color: AppColors.shadowColor(context),
               blurRadius: 15,
               spreadRadius: 3,
               offset: const Offset(0, 5),
@@ -628,46 +707,69 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: Icon(icon, color: AppColors.white, size: 24),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
-                color: AppColors.black,
+                color: AppColors.onSurfaceColor(context),
+                fontFamily: "OpenSans-SemiBold",
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               subtitle,
               style: TextStyle(
-                color: AppColors.mediumGrey,
+                color: AppColors.onSurfaceSecondaryColor(context),
                 fontSize: 11,
                 height: 1.3,
+                fontFamily: "OpenSans",
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            if (!isAvailable) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.warning, AppColors.secondaryYellow],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  l10n.comingSoon,
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: "OpenSans-SemiBold",
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRecentActivity(KartiaLocalizations l10n) {
+  Widget _buildRecentActivity(KartiaLocalizations l10n, HomeLoaded state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfaceColor(context),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow2,
+                color: AppColors.shadowColor(context),
                 blurRadius: 10,
                 spreadRadius: 2,
                 offset: const Offset(0, 3),
@@ -680,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppColors.primaryPurple, AppColors.secondary],
+                    colors: [AppColors.primaryPurple, AppColors.primary],
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -690,12 +792,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   size: 20,
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Text(
                 l10n.recentActivity,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceColor(context),
+                  fontFamily: "OpenSans-Bold",
+                ),
               ),
             ],
           ),
@@ -705,11 +809,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: AppColors.surfaceColor(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow2,
+                color: AppColors.shadowColor(context),
                 blurRadius: 15,
                 spreadRadius: 3,
                 offset: const Offset(0, 5),
@@ -721,31 +825,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.lightGrey.withAlpha(30),
+                  color: AppColors.onSurfaceSecondaryColor(
+                    context,
+                  ).withAlpha(30),
                   borderRadius: BorderRadius.circular(60),
                 ),
                 child: Icon(
                   Icons.history_rounded,
                   size: 48,
-                  color: AppColors.mediumGrey,
+                  color: AppColors.onSurfaceSecondaryColor(context),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
                 l10n.noRecentActivity,
                 style: TextStyle(
-                  color: AppColors.mediumGrey,
+                  color: AppColors.onSurfaceSecondaryColor(context),
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  fontFamily: "OpenSans-SemiBold",
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 l10n.startUsingServices,
                 style: TextStyle(
-                  color: AppColors.mediumGrey,
+                  color: AppColors.onSurfaceSecondaryColor(context),
                   fontSize: 14,
                   height: 1.4,
+                  fontFamily: "OpenSans",
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -756,9 +864,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildServicesTab(KartiaLocalizations l10n) {
+  Widget _buildServicesTab(
+    BuildContext context,
+    HomeLoaded state,
+    KartiaLocalizations l10n,
+  ) {
     return Container(
-      color: AppColors.lightBackground,
+      color: AppColors.backgroundColor(context),
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(fixPadding),
@@ -772,7 +884,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.secondary.withAlpha(30),
+                      color: AppColors.secondaryYellow.withAlpha(30),
                       blurRadius: 15,
                       spreadRadius: 3,
                       offset: const Offset(0, 5),
@@ -782,7 +894,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Row(
                   children: [
                     Icon(Icons.apps_rounded, color: AppColors.white, size: 28),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Text(
                       l10n.ourServices,
                       style: Theme.of(
@@ -790,6 +902,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.white,
+                        fontFamily: "OpenSans-Bold",
                       ),
                     ),
                   ],
@@ -798,52 +911,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               SizedBox(height: heightSpace.height! * 2),
 
               Expanded(
-                child: ListView(
-                  children: [
-                    _buildServiceCard(
+                child: ListView.separated(
+                  itemCount: state.services.length,
+                  separatorBuilder:
+                      (context, index) => SizedBox(height: heightSpace.height!),
+                  itemBuilder: (context, index) {
+                    final service = state.services[index];
+                    return _buildServiceCard(
                       l10n,
-                      icon: Icons.map_rounded,
-                      title: l10n.cityAiGuide,
-                      description: l10n.cityAiGuideDesc,
-                      gradient: LinearGradient(
-                        colors: [AppColors.primary, AppColors.info],
+                      icon: IconData(
+                        int.parse(service.iconCode),
+                        fontFamily: 'MaterialIcons',
                       ),
-                      isAvailable: false,
-                    ),
-                    SizedBox(height: heightSpace.height!),
-                    _buildServiceCard(
-                      l10n,
-                      icon: Icons.health_and_safety_rounded,
-                      title: l10n.santeMap,
-                      description: l10n.santeMapDesc,
+                      title: service.title,
+                      description: service.description,
                       gradient: LinearGradient(
-                        colors: [AppColors.success, AppColors.info],
+                        colors:
+                            service.gradientColors
+                                .map((color) => Color(color))
+                                .toList(),
                       ),
-                      isAvailable: false,
-                    ),
-                    SizedBox(height: heightSpace.height!),
-                    _buildServiceCard(
-                      l10n,
-                      icon: Icons.volunteer_activism_rounded,
-                      title: l10n.civact,
-                      description: l10n.civactDesc,
-                      gradient: LinearGradient(
-                        colors: [AppColors.secondary, AppColors.warning],
-                      ),
-                      isAvailable: false,
-                    ),
-                    SizedBox(height: heightSpace.height!),
-                    _buildServiceCard(
-                      l10n,
-                      icon: Icons.shopping_cart_rounded,
-                      title: l10n.cartoPrix,
-                      description: l10n.cartoPrixDesc,
-                      gradient: LinearGradient(
-                        colors: [AppColors.secondaryYellow, AppColors.warning],
-                      ),
-                      isAvailable: false,
-                    ),
-                  ],
+                      isAvailable: service.isAvailable,
+                      onTap: () => _showComingSoon(l10n, service.title),
+                    );
+                  },
                 ),
               ),
             ],
@@ -860,95 +951,104 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required String description,
     required LinearGradient gradient,
     required bool isAvailable,
+    VoidCallback? onTap,
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.surfaceColor(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow2,
+            color: AppColors.shadowColor(context),
             blurRadius: 15,
             spreadRadius: 3,
             offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: AppColors.white, size: 32),
             ),
-            child: Icon(icon, color: AppColors.white, size: 32),
-          ),
-          SizedBox(width: widthSpace.width!),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.black,
-                      ),
-                    ),
-                    if (!isAvailable) ...[
-                      SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.warning,
-                              AppColors.secondaryYellow,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+            SizedBox(width: widthSpace.width!),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
                         child: Text(
-                          l10n.comingSoon,
+                          title,
                           style: TextStyle(
-                            color: AppColors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.onSurfaceColor(context),
+                            fontFamily: "OpenSans-Bold",
                           ),
                         ),
                       ),
+                      if (!isAvailable) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.warning,
+                                AppColors.secondaryYellow,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            l10n.comingSoon,
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: "OpenSans-SemiBold",
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-                SizedBox(height: 8),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: AppColors.mediumGrey,
-                    fontSize: 14,
-                    height: 1.4,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      color: AppColors.onSurfaceSecondaryColor(context),
+                      fontSize: 14,
+                      height: 1.4,
+                      fontFamily: "OpenSans",
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSettingsTab(KartiaLocalizations l10n) {
+  Widget _buildSettingsTab(BuildContext context, KartiaLocalizations l10n) {
     return Container(
-      color: AppColors.lightBackground,
+      color: AppColors.backgroundColor(context),
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(fixPadding),
@@ -978,7 +1078,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       color: AppColors.white,
                       size: 28,
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Text(
                       l10n.settings,
                       style: Theme.of(
@@ -986,6 +1086,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.white,
+                        fontFamily: "OpenSans-Bold",
                       ),
                     ),
                   ],
@@ -1003,9 +1104,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         title: l10n.profile,
                         subtitle: l10n.manageProfile,
                         onTap: _navigateToProfile,
-                        gradient: LinearGradient(
-                          colors: [AppColors.primary, AppColors.secondary],
-                        ),
+                        gradient: AppColors.primaryGradient,
                       ),
                     ]),
 
@@ -1064,7 +1163,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         onTap: () => _showComingSoon(l10n, l10n.help),
                         gradient: LinearGradient(
                           colors: [
-                            AppColors.secondary,
+                            AppColors.primaryOrange,
                             AppColors.primaryPurple,
                           ],
                         ),
@@ -1091,11 +1190,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: AppColors.surfaceColor(context),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow2,
+                color: AppColors.shadowColor(context),
                 blurRadius: 8,
                 spreadRadius: 1,
                 offset: const Offset(0, 2),
@@ -1107,17 +1206,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: AppColors.primary,
+              fontFamily: "OpenSans-Bold",
             ),
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: AppColors.surfaceColor(context),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadow2,
+                color: AppColors.shadowColor(context),
                 blurRadius: 10,
                 spreadRadius: 2,
                 offset: const Offset(0, 3),
@@ -1137,7 +1237,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required String subtitle,
     required VoidCallback onTap,
     Widget? trailing,
-    LinearGradient? gradient,
+    required LinearGradient gradient,
   }) {
     return Material(
       color: Colors.transparent,
@@ -1151,16 +1251,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient:
-                      gradient ??
-                      LinearGradient(
-                        colors: [AppColors.primary, AppColors.secondary],
-                      ),
+                  gradient: gradient,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: AppColors.white, size: 20),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1170,15 +1266,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
+                        color: AppColors.onSurfaceColor(context),
+                        fontFamily: "OpenSans-SemiBold",
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: AppColors.mediumGrey,
+                        color: AppColors.onSurfaceSecondaryColor(context),
                         fontSize: 12,
                         height: 1.3,
+                        fontFamily: "OpenSans",
                       ),
                     ),
                   ],
@@ -1187,7 +1286,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               trailing ??
                   Icon(
                     Icons.arrow_forward_ios_rounded,
-                    color: AppColors.mediumGrey,
+                    color: AppColors.onSurfaceSecondaryColor(context),
                     size: 16,
                   ),
             ],
@@ -1197,17 +1296,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildBottomNavigationBar(KartiaLocalizations l10n) {
+  Widget _buildBottomNavigationBar(
+    BuildContext context,
+    HomeLoaded state,
+    KartiaLocalizations l10n,
+  ) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.surfaceColor(context),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(25),
           topRight: Radius.circular(25),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow2,
+            color: AppColors.shadowColor(context),
             blurRadius: 15,
             spreadRadius: 3,
             offset: const Offset(0, -5),
@@ -1215,21 +1318,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: state.selectedTabIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.mediumGrey,
+        unselectedItemColor: AppColors.onSurfaceSecondaryColor(context),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontFamily: "OpenSans-SemiBold",
+        ),
+        unselectedLabelStyle: const TextStyle(fontFamily: "OpenSans"),
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_rounded),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(15),
+                color: AppColors.primary.withAlpha(30),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.home_rounded),
@@ -1241,7 +1348,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(15),
+                color: AppColors.primary.withAlpha(30),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.apps_rounded),
@@ -1253,7 +1360,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(15),
+                color: AppColors.primary.withAlpha(30),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.settings_rounded),
