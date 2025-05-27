@@ -1,4 +1,4 @@
-// ignore_for_file: must_be_immutable
+// lib/src/app.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,9 +6,10 @@ import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/di/di.dart';
 import 'package:kartia/src/core/routes/app.routes.dart';
 import 'package:kartia/src/modules/app/bloc/app_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:kartia/src/modules/home/bloc/home_bloc.dart';
 import 'package:kartia/src/modules/splash/bloc/splash_bloc.dart';
 import 'package:kartia/src/app_navigation_manager.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 /// Widget racine de l'application Kartia
 class MyApp extends StatelessWidget {
@@ -23,6 +24,9 @@ class MyApp extends StatelessWidget {
 
         // BLoC de l'écran de splash
         BlocProvider(create: (context) => getIt<SplashBloc>()),
+
+        // BLoC de l'écran d'accueil
+        BlocProvider(create: (context) => HomeBloc()),
       ],
       child: BlocBuilder<AppBloc, AppState>(
         builder: (context, appState) {
@@ -47,6 +51,7 @@ class MyApp extends StatelessWidget {
             // Navigation
             onGenerateRoute: AppRoutes.generateRoute,
 
+            // Widget principal
             home: const AppNavigationManager(),
           );
         },
