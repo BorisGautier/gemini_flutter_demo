@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>kartia</string>
+	<string>Kartia</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,69 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Kartia a besoin d'accéder à votre position pour vous offrir des services basés sur votre localisation et améliorer votre expérience utilisateur.</string>
+	
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Kartia souhaite accéder à votre position en arrière-plan pour maintenir vos services de localisation actifs et vous offrir une meilleure expérience.</string>
+	
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Kartia souhaite accéder à votre position en arrière-plan pour maintenir vos services de localisation actifs et vous offrir une meilleure expérience.</string>
+	
+	<!-- Permission pour l'appareil photo (pour les photos de profil) -->
+	<key>NSCameraUsageDescription</key>
+	<string>Kartia a besoin d'accéder à votre appareil photo pour vous permettre de prendre des photos de profil.</string>
+	
+	<!-- Permission pour la galerie photo -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kartia a besoin d'accéder à votre galerie photo pour vous permettre de sélectionner des images de profil.</string>
+	
+	<!-- Permission pour le microphone (si vous prévoyez des fonctionnalités audio) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kartia a besoin d'accéder à votre microphone pour les fonctionnalités audio de l'application.</string>
+	
+	<!-- Permission pour les contacts (si vous prévoyez des fonctionnalités de contact) -->
+	<key>NSContactsUsageDescription</key>
+	<string>Kartia souhaite accéder à vos contacts pour vous aider à retrouver et inviter vos amis sur l'application.</string>
+	
+	<!-- Permission pour les notifications push -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>location</string>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- Configuration pour empêcher la sauvegarde automatique dans iCloud -->
+	<key>UIFileSharingEnabled</key>
+	<false/>
+	
+	<!-- Support des URL schemes personnalisés (pour les liens profonds) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>kartia.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kartia</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- Configuration pour les performances -->
+	<key>UIRequiresFullScreen</key>
+	<false/>
+	
+	<!-- Configuration pour la sécurité des transports -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	
 </dict>
 </plist>

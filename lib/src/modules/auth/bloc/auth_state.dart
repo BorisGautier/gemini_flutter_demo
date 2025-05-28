@@ -23,17 +23,20 @@ enum AuthStatus {
   /// Erreur d'authentification
   error,
 
-  /// ✅ NOUVEAU: Email non vérifié
+  /// Email non vérifié
   emailNotVerified,
 }
 
-/// État d'authentification
+/// État d'authentification amélioré avec Firestore
 class AuthState extends Equatable {
   /// Statut actuel de l'authentification
   final AuthStatus status;
 
-  /// Utilisateur connecté (null si non connecté)
+  /// Utilisateur connecté Firebase Auth (null si non connecté)
   final UserModel? user;
+
+  /// Données utilisateur Firestore (null si non chargées)
+  final FirestoreUserModel? firestoreUser;
 
   /// Message d'erreur en cas d'échec
   final String? errorMessage;
@@ -50,14 +53,23 @@ class AuthState extends Equatable {
   /// Indique si une opération est en cours
   final bool isLoading;
 
+  /// Position actuelle de l'utilisateur
+  final UserLocation? currentLocation;
+
+  /// Indique si le suivi de localisation est actif
+  final bool isLocationTrackingActive;
+
   const AuthState({
     this.status = AuthStatus.unknown,
     this.user,
+    this.firestoreUser,
     this.errorMessage,
     this.errorCode,
     this.verificationId,
     this.resendToken,
     this.isLoading = false,
+    this.currentLocation,
+    this.isLocationTrackingActive = false,
   });
 
   /// État initial
@@ -65,11 +77,14 @@ class AuthState extends Equatable {
     return const AuthState(
       status: AuthStatus.unknown,
       user: null,
+      firestoreUser: null,
       errorMessage: null,
       errorCode: null,
       verificationId: null,
       resendToken: null,
       isLoading: false,
+      currentLocation: null,
+      isLocationTrackingActive: false,
     );
   }
 
@@ -84,13 +99,17 @@ class AuthState extends Equatable {
   }
 
   /// État d'utilisateur authentifié
-  AuthState authenticated(UserModel user) {
+  AuthState authenticated(UserModel user, FirestoreUserModel? firestoreUser) {
     return copyWith(
       status: AuthStatus.authenticated,
       user: user,
+      firestoreUser: firestoreUser,
       isLoading: false,
       errorMessage: null,
       errorCode: null,
+      currentLocation: firestoreUser?.currentLocation,
+      isLocationTrackingActive:
+          firestoreUser?.preferences.locationSharingEnabled ?? false,
     );
   }
 
@@ -99,22 +118,32 @@ class AuthState extends Equatable {
     return copyWith(
       status: AuthStatus.unauthenticated,
       user: null,
+      firestoreUser: null,
       isLoading: false,
       errorMessage: null,
       errorCode: null,
       verificationId: null,
       resendToken: null,
+      currentLocation: null,
+      isLocationTrackingActive: false,
     );
   }
 
-  /// ✅ NOUVEAU: État d'email non vérifié
-  AuthState emailNotVerified(UserModel user) {
+  /// État d'email non vérifié
+  AuthState emailNotVerified(
+    UserModel user,
+    FirestoreUserModel? firestoreUser,
+  ) {
     return copyWith(
       status: AuthStatus.emailNotVerified,
       user: user,
+      firestoreUser: firestoreUser,
       isLoading: false,
       errorMessage: null,
       errorCode: null,
+      currentLocation: firestoreUser?.currentLocation,
+      isLocationTrackingActive:
+          false, // Pas de suivi pour les emails non vérifiés
     );
   }
 
@@ -154,20 +183,27 @@ class AuthState extends Equatable {
   AuthState copyWith({
     AuthStatus? status,
     UserModel? user,
+    FirestoreUserModel? firestoreUser,
     String? errorMessage,
     String? errorCode,
     String? verificationId,
     int? resendToken,
     bool? isLoading,
+    UserLocation? currentLocation,
+    bool? isLocationTrackingActive,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
+      firestoreUser: firestoreUser ?? this.firestoreUser,
       errorMessage: errorMessage,
       errorCode: errorCode,
       verificationId: verificationId ?? this.verificationId,
       resendToken: resendToken ?? this.resendToken,
       isLoading: isLoading ?? this.isLoading,
+      currentLocation: currentLocation ?? this.currentLocation,
+      isLocationTrackingActive:
+          isLocationTrackingActive ?? this.isLocationTrackingActive,
     );
   }
 
@@ -178,7 +214,7 @@ class AuthState extends Equatable {
   /// Vérifier si l'utilisateur n'est pas connecté
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;
 
-  /// ✅ NOUVEAU: Vérifier si l'email n'est pas vérifié
+  /// Vérifier si l'email n'est pas vérifié
   bool get isEmailNotVerified => status == AuthStatus.emailNotVerified;
 
   /// Vérifier s'il y a une erreur
@@ -192,15 +228,101 @@ class AuthState extends Equatable {
   bool get isPhoneVerificationInProgress =>
       status == AuthStatus.phoneVerificationInProgress;
 
+  /// Obtenir le nom d'affichage de l'utilisateur
+  String get displayName {
+    if (firestoreUser?.fullName.isNotEmpty == true) {
+      return firestoreUser!.fullName;
+    }
+    if (user?.displayName?.isNotEmpty == true) {
+      return user!.displayName!;
+    }
+    if (user?.email?.isNotEmpty == true) {
+      return user!.email!.split('@')[0];
+    }
+    if (user?.phoneNumber?.isNotEmpty == true) {
+      return user!.phoneNumber!;
+    }
+    return 'Utilisateur';
+  }
+
+  /// Obtenir le nom d'utilisateur unique
+  String? get username => firestoreUser?.username;
+
+  /// Obtenir l'URL de la photo de profil
+  String? get photoURL => firestoreUser?.photoURL ?? user?.photoURL;
+
+  /// Vérifier si l'utilisateur a un profil Firestore complet
+  bool get hasCompleteProfile {
+    return firestoreUser != null &&
+        firestoreUser!.fullName.isNotEmpty &&
+        firestoreUser!.username.isNotEmpty;
+  }
+
+  /// Obtenir les préférences utilisateur
+  UserPreferences get preferences {
+    return firestoreUser?.preferences ?? UserPreferences.defaultPreferences();
+  }
+
+  /// Vérifier si l'utilisateur autorise le partage de localisation
+  bool get isLocationSharingEnabled {
+    return preferences.locationSharingEnabled && isLocationTrackingActive;
+  }
+
+  /// Obtenir les informations sur l'appareil
+  DeviceInfo? get deviceInfo => firestoreUser?.deviceInfo;
+
+  /// Obtenir les informations sur l'application
+  AppInfo? get appInfo => firestoreUser?.appInfo;
+
+  /// Vérifier si l'utilisateur est anonyme
+  bool get isAnonymous => user?.isAnonymous ?? false;
+
+  /// Obtenir l'historique des positions
+  List<UserLocation> get locationHistory =>
+      firestoreUser?.locationHistory ?? [];
+
+  /// Obtenir la dernière position connue
+  UserLocation? get lastKnownLocation {
+    if (currentLocation != null) return currentLocation;
+    if (locationHistory.isNotEmpty) return locationHistory.last;
+    return null;
+  }
+
+  /// Vérifier si l'utilisateur peut utiliser certaines fonctionnalités
+  bool get canUseLocationFeatures {
+    return isAuthenticated && !isEmailNotVerified && isLocationSharingEnabled;
+  }
+
+  /// Obtenir un résumé de l'état pour le debug
+  String get debugInfo {
+    return '''
+AuthState Debug Info:
+- Status: $status
+- User ID: ${user?.uid ?? 'null'}
+- Firestore User: ${firestoreUser?.userId ?? 'null'}
+- Is Loading: $isLoading
+- Has Error: $hasError
+- Error Message: $errorMessage
+- Location Tracking: $isLocationTrackingActive
+- Current Location: ${currentLocation?.coordinatesString ?? 'null'}
+- Display Name: $displayName
+- Username: ${username ?? 'null'}
+- Complete Profile: $hasCompleteProfile
+    ''';
+  }
+
   @override
   List<Object?> get props => [
     status,
     user,
+    firestoreUser,
     errorMessage,
     errorCode,
     verificationId,
     resendToken,
     isLoading,
+    currentLocation,
+    isLocationTrackingActive,
   ];
 
   @override
@@ -208,11 +330,14 @@ class AuthState extends Equatable {
     return 'AuthState { '
         'status: $status, '
         'user: ${user?.uid}, '
+        'firestoreUser: ${firestoreUser?.userId}, '
         'isLoading: $isLoading, '
         'errorMessage: $errorMessage, '
         'errorCode: $errorCode, '
         'verificationId: $verificationId, '
-        'resendToken: $resendToken '
+        'resendToken: $resendToken, '
+        'isLocationTrackingActive: $isLocationTrackingActive, '
+        'currentLocation: ${currentLocation?.coordinatesString} '
         '}';
   }
 }

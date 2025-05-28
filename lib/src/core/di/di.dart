@@ -1,9 +1,14 @@
+// lib/src/core/di/di.dart (VERSION MISE À JOUR)
+
 import 'package:flutter/material.dart';
 import 'package:kartia/src/core/database/db.dart';
 import 'package:kartia/src/core/helpers/network.helper.dart';
 import 'package:kartia/src/core/helpers/sharedpreferences.helper.dart';
 import 'package:kartia/src/core/services/auth.service.dart';
 import 'package:kartia/src/core/services/log.service.dart';
+import 'package:kartia/src/core/services/firestore_user.service.dart';
+import 'package:kartia/src/core/services/location.service.dart';
+import 'package:kartia/src/core/services/user_sync.service.dart'; // ✅ NOUVEAU
 import 'package:kartia/src/modules/app/bloc/app_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
@@ -14,35 +19,58 @@ import 'package:kartia/src/modules/splash/bloc/splash_bloc.dart';
 final GetIt getIt = GetIt.instance;
 
 Future<void> init() async {
-  //Utils
+  // === SERVICES DE BASE ===
+
   // Enregistrement des instances des différents helpers
   getIt.registerLazySingleton<NetworkInfoHelper>(() => NetworkInfoHelper());
   getIt.registerLazySingleton<SharedPreferencesHelper>(
     () => SharedPreferencesHelper(),
   );
+
+  // Services principaux
   getIt.registerLazySingleton<LogService>(() => LogService());
   getIt.registerLazySingleton<AuthService>(() => AuthService());
+  getIt.registerLazySingleton<FirestoreUserService>(
+    () => FirestoreUserService(),
+  );
+  getIt.registerLazySingleton<LocationService>(() => LocationService());
 
-  getIt.registerLazySingleton<AuthRepositoryInterface>(
-    () => AuthRepository(
-      authService: getIt<AuthService>(),
+  // ✅ NOUVEAU : Service de synchronisation utilisateur
+  getIt.registerLazySingleton<UserSyncService>(
+    () => UserSyncService(
+      firestoreUserService: getIt<FirestoreUserService>(),
+      locationService: getIt<LocationService>(),
       logger: getIt<LogService>(),
     ),
   );
 
-  // Database
+  // Repository d'authentification avec le nouveau service de sync
+  getIt.registerLazySingleton<AuthRepositoryInterface>(
+    () => AuthRepository(
+      authService: getIt<AuthService>(),
+      firestoreUserService: getIt<FirestoreUserService>(),
+      logger: getIt<LogService>(),
+    ),
+  );
+
+  // === DATABASE ===
+
   // Enregistrement des instances des DAO pour accéder à la base de données
   getIt.registerLazySingleton<MyDatabase>(() => MyDatabase());
 
-  //Bloc
+  // === BLOCS ===
+
   // Enregistrement des instances des différents blocs
   getIt.registerFactory<GpsBloc>(() => GpsBloc(logger: getIt()));
   getIt.registerFactory<AppBloc>(() => AppBloc(logger: getIt()));
   getIt.registerFactory<SplashBloc>(() => SplashBloc());
 
+  // ✅ MISE À JOUR : AuthBloc avec le service de synchronisation
   getIt.registerFactory<AuthBloc>(
     () => AuthBloc(
       authRepository: getIt<AuthRepositoryInterface>(),
+      locationService: getIt<LocationService>(),
+      userSyncService: getIt<UserSyncService>(), // ✅ NOUVEAU
       logger: getIt<LogService>(),
     ),
   );
@@ -51,7 +79,9 @@ Future<void> init() async {
   await getIt<LogService>().initialize();
 
   // Logger l'initialisation du DI
-  getIt<LogService>().info('Dependency Injection initialisé avec succès');
+  getIt<LogService>().info(
+    'Dependency Injection initialisé avec succès avec synchronisation utilisateur',
+  );
 }
 
 Future<void> dispose() async {
@@ -60,6 +90,9 @@ Future<void> dispose() async {
 
     // Fermer la base de données
     await getIt<MyDatabase>().close();
+
+    // Nettoyer les services de localisation
+    getIt<LocationService>().dispose();
 
     // Nettoyer GetIt
     await getIt.reset();

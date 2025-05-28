@@ -111,7 +111,7 @@ class AuthPhoneCodeSent extends AuthEvent {
   String toString() => 'AuthPhoneCodeSent { verificationId: $verificationId }';
 }
 
-/// ✅ NOUVEAU: Événement pour les erreurs de vérification téléphone
+/// Événement pour les erreurs de vérification téléphone
 class AuthPhoneVerificationFailed extends AuthEvent {
   final String message;
   final String? code;
@@ -215,4 +215,118 @@ class AuthErrorCleared extends AuthEvent {
 
   @override
   String toString() => 'AuthErrorCleared';
+}
+
+// ✅ NOUVEAUX ÉVÉNEMENTS POUR FIRESTORE ET LOCALISATION
+
+/// Événement pour mettre à jour la localisation
+class AuthLocationUpdated extends AuthEvent {
+  final UserLocation location;
+
+  const AuthLocationUpdated(this.location);
+
+  @override
+  List<Object> get props => [location];
+
+  @override
+  String toString() =>
+      'AuthLocationUpdated { location: ${location.coordinatesString} }';
+}
+
+/// Événement pour démarrer le suivi de localisation
+class AuthStartLocationTracking extends AuthEvent {
+  const AuthStartLocationTracking();
+
+  @override
+  String toString() => 'AuthStartLocationTracking';
+}
+
+/// Événement pour arrêter le suivi de localisation
+class AuthStopLocationTracking extends AuthEvent {
+  const AuthStopLocationTracking();
+
+  @override
+  String toString() => 'AuthStopLocationTracking';
+}
+
+/// Événement quand les données Firestore de l'utilisateur sont chargées
+class AuthFirestoreUserLoaded extends AuthEvent {
+  final FirestoreUserModel firestoreUser;
+
+  const AuthFirestoreUserLoaded(this.firestoreUser);
+
+  @override
+  List<Object> get props => [firestoreUser];
+
+  @override
+  String toString() =>
+      'AuthFirestoreUserLoaded { userId: ${firestoreUser.userId} }';
+}
+
+/// Événement pour mettre à jour les préférences utilisateur
+class AuthUpdateUserPreferences extends AuthEvent {
+  final UserPreferences preferences;
+
+  const AuthUpdateUserPreferences(this.preferences);
+
+  @override
+  List<Object> get props => [preferences];
+
+  @override
+  String toString() => 'AuthUpdateUserPreferences';
+}
+
+/// Événement pour mettre à jour des données Firestore spécifiques
+class AuthUpdateFirestoreData extends AuthEvent {
+  final Map<String, dynamic> updates;
+
+  const AuthUpdateFirestoreData(this.updates);
+
+  @override
+  List<Object> get props => [updates];
+
+  @override
+  String toString() => 'AuthUpdateFirestoreData { updates: $updates }';
+}
+
+// Nouveaux événements à ajouter au fichier auth_event.dart
+
+/// Événement pour synchroniser manuellement les données utilisateur
+class AuthSyncUserData extends AuthEvent {
+  const AuthSyncUserData();
+
+  @override
+  String toString() => 'AuthSyncUserData';
+}
+
+/// Événement déclenché par la synchronisation périodique
+class AuthPeriodicSyncTriggered extends AuthEvent {
+  const AuthPeriodicSyncTriggered();
+
+  @override
+  String toString() => 'AuthPeriodicSyncTriggered';
+}
+
+/// Événement pour forcer une synchronisation complète
+class AuthForceSyncUserData extends AuthEvent {
+  const AuthForceSyncUserData();
+
+  @override
+  String toString() => 'AuthForceSyncUserData';
+}
+
+/// Événement pour mettre à jour spécifiquement les informations de l'appareil
+class AuthUpdateDeviceInfo extends AuthEvent {
+  const AuthUpdateDeviceInfo();
+
+  @override
+  String toString() => 'AuthUpdateDeviceInfo';
+}
+
+/// Événement pour mettre à jour spécifiquement les informations de l'application
+class AuthUpdateAppInfo extends AuthEvent {
+  const AuthUpdateAppInfo();
+
+  @override
+  String toString() => 'AuthUpdateAppInfo';
 }

@@ -1,5 +1,6 @@
 // lib/src/modules/home/views/home.screen.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kartia/generated/l10n.dart';
@@ -15,7 +16,7 @@ import 'package:kartia/src/modules/home/bloc/home_state.dart';
 import 'package:kartia/src/widgets/kartia_button.widget.dart';
 import 'package:kartia/src/widgets/kartia_loading.widget.dart';
 
-/// Écran d'accueil principal de l'application
+/// Écran d'accueil principal de l'application avec design responsif et synchronisation
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -24,11 +25,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  // Contrôleurs d'animation
   late AnimationController _fadeAnimationController;
   late AnimationController _slideAnimationController;
   late AnimationController _staggerAnimationController;
   late AnimationController _fabAnimationController;
 
+  // Animations principales
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fabScaleAnimation;
@@ -47,6 +50,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // Initialiser le HomeBloc
     context.read<HomeBloc>().add(const HomeInitialized());
+
+    // Déclencher la synchronisation des données utilisateur
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authBloc = context.read<AuthBloc>();
+      if (authBloc.state.isAuthenticated) {
+        authBloc.add(const AuthPeriodicSyncTriggered());
+      }
+    });
   }
 
   void _initializeAnimations() {
@@ -161,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // Méthodes d'interaction
   void _onItemTapped(int index) {
     context.read<HomeBloc>().add(BottomNavItemSelected(index));
   }
@@ -199,89 +211,122 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _syncUserData() {
+    context.read<AuthBloc>().add(const AuthSyncUserData());
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Synchronisation des données en cours...'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = KartiaLocalizations.of(context);
 
-    return BlocBuilder<HomeBloc, HomeState>(
-      builder: (context, state) {
-        if (state is HomeLoading) {
-          return Scaffold(
-            backgroundColor: AppColors.backgroundColor(context),
-            body: Center(
-              child: KartiaLoading.circular(
-                size: KartiaLoadingSize.large,
-                message: 'Chargement...',
-                color: AppColors.primary,
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        // Afficher des notifications lors des synchronisations
+        if (state.firestoreUser != null) {
+          final lastUpdate = state.firestoreUser!.updatedAt;
+          if (DateTime.now().difference(lastUpdate).inSeconds < 10) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Données mises à jour'),
+                duration: const Duration(seconds: 1),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                backgroundColor: Colors.green.shade600,
               ),
-            ),
-          );
+            );
+          }
         }
-
-        if (state is HomeError) {
-          return Scaffold(
-            backgroundColor: AppColors.backgroundColor(context),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: AppColors.error),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Erreur de chargement',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.onSurfaceColor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    state.message,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.onSurfaceSecondaryColor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<HomeBloc>().add(const HomeInitialized());
-                    },
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        if (state is HomeLoaded) {
-          return Scaffold(
-            backgroundColor: AppColors.backgroundColor(context),
-            body: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: _buildBody(context, state, l10n),
-              ),
-            ),
-            bottomNavigationBar: _buildBottomNavigationBar(
-              context,
-              state,
-              l10n,
-            ),
-            floatingActionButton: ScaleTransition(
-              scale: _fabScaleAnimation,
-              child: FloatingActionButton(
-                onPressed: () => _onItemTapped(1),
-                backgroundColor: AppColors.primaryOrange,
-                child: Icon(Icons.explore_rounded, color: AppColors.white),
-              ),
-            ),
-          );
-        }
-
-        return const SizedBox.shrink();
       },
+      child: BlocBuilder<HomeBloc, HomeState>(
+        builder: (context, state) {
+          if (state is HomeLoading) {
+            return Scaffold(
+              backgroundColor: AppColors.backgroundColor(context),
+              body: Center(
+                child: KartiaLoading.circular(
+                  size: KartiaLoadingSize.large,
+                  message: 'Chargement...',
+                  color: AppColors.primary,
+                ),
+              ),
+            );
+          }
+
+          if (state is HomeError) {
+            return Scaffold(
+              backgroundColor: AppColors.backgroundColor(context),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Erreur de chargement',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.onSurfaceColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        state.message,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.onSurfaceSecondaryColor(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<HomeBloc>().add(const HomeInitialized());
+                      },
+                      child: const Text('Réessayer'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          if (state is HomeLoaded) {
+            return Scaffold(
+              backgroundColor: AppColors.backgroundColor(context),
+              body: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: _buildBody(context, state, l10n),
+                ),
+              ),
+              bottomNavigationBar: _buildBottomNavigationBar(
+                context,
+                state,
+                l10n,
+              ),
+              floatingActionButton: ScaleTransition(
+                scale: _fabScaleAnimation,
+                child: FloatingActionButton(
+                  onPressed: () => _onItemTapped(1),
+                  backgroundColor: AppColors.primaryOrange,
+                  child: Icon(Icons.explore_rounded, color: AppColors.white),
+                ),
+              ),
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 
@@ -328,6 +373,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: RefreshIndicator(
           onRefresh: () async {
             context.read<HomeBloc>().add(const RefreshRequested());
+            context.read<AuthBloc>().add(const AuthSyncUserData());
           },
           color: AppColors.primary,
           child: SingleChildScrollView(
@@ -367,6 +413,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final user = state.user;
+        final isLoading = state.isLoading;
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -447,28 +494,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         color: AppColors.onSurfaceColor(context),
                         fontFamily: "OpenSans-Bold",
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
 
               // Boutons d'action avec design amélioré
-              Row(
+              Wrap(
+                spacing: 8,
                 children: [
+                  _buildHeaderButton(
+                    icon: isLoading ? Icons.sync : Icons.sync,
+                    onPressed: isLoading ? null : _syncUserData,
+                    gradient: LinearGradient(
+                      colors: [AppColors.info, AppColors.primary],
+                    ),
+                    tooltip: 'Synchroniser',
+                    isLoading: isLoading,
+                  ),
                   _buildHeaderButton(
                     icon: Icons.brightness_6_rounded,
                     onPressed: _toggleTheme,
                     gradient: LinearGradient(
                       colors: [AppColors.warning, AppColors.secondaryYellow],
                     ),
+                    tooltip: 'Changer le thème',
                   ),
-                  const SizedBox(width: 8),
                   _buildHeaderButton(
                     icon: Icons.language_rounded,
                     onPressed: _toggleLanguage,
                     gradient: LinearGradient(
                       colors: [AppColors.primaryPurple, AppColors.primary],
                     ),
+                    tooltip: 'Changer la langue',
                   ),
                 ],
               ),
@@ -481,16 +541,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildHeaderButton({
     required IconData icon,
-    required VoidCallback onPressed,
+    VoidCallback? onPressed,
     required LinearGradient gradient,
+    String? tooltip,
+    bool isLoading = false,
   }) {
-    return Container(
+    final button = Container(
       decoration: BoxDecoration(
-        gradient: gradient,
+        gradient:
+            onPressed != null
+                ? gradient
+                : LinearGradient(colors: [Colors.grey, Colors.grey.shade400]),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: gradient.colors.first.withAlpha(30),
+            color: (onPressed != null ? gradient.colors.first : Colors.grey)
+                .withAlpha(30),
             blurRadius: 8,
             spreadRadius: 1,
             offset: const Offset(0, 3),
@@ -504,11 +570,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(10),
-            child: Icon(icon, color: AppColors.white, size: 20),
+            child:
+                isLoading
+                    ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.white,
+                        ),
+                      ),
+                    )
+                    : Icon(icon, color: AppColors.white, size: 20),
           ),
         ),
       ),
     );
+
+    return tooltip != null ? Tooltip(message: tooltip, child: button) : button;
   }
 
   Widget _buildWelcomeCard(KartiaLocalizations l10n) {
@@ -639,15 +719,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         SizedBox(height: heightSpace.height!),
 
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.5,
-          children:
-              state.quickActions.map((action) {
+        // Layout responsif avec LayoutBuilder
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Calculer le nombre de colonnes en fonction de la largeur
+            int crossAxisCount = 2;
+            if (constraints.maxWidth > 600) {
+              crossAxisCount = 3;
+            }
+            if (constraints.maxWidth > 900) {
+              crossAxisCount = 4;
+            }
+
+            // Calculer la largeur disponible pour chaque carte
+            final spacing = 16.0;
+            final availableWidth =
+                constraints.maxWidth - (spacing * (crossAxisCount - 1));
+            final cardWidth = availableWidth / crossAxisCount;
+
+            // Calculer un aspect ratio dynamique basé sur la largeur de la carte
+            double childAspectRatio = 1.2;
+            if (cardWidth < 160) {
+              childAspectRatio = 1.0; // Plus carré pour les petites cartes
+            } else if (cardWidth > 200) {
+              childAspectRatio =
+                  1.4; // Plus rectangulaire pour les grandes cartes
+            }
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: spacing,
+                mainAxisSpacing: spacing,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemCount: state.quickActions.length,
+              itemBuilder: (context, index) {
+                final action = state.quickActions[index];
                 return _buildActionCard(
                   l10n,
                   icon: IconData(
@@ -664,201 +774,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   onTap: () => _showComingSoon(l10n, action.title),
                   isAvailable: action.isAvailable,
+                  cardWidth: cardWidth,
                 );
-              }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-    KartiaLocalizations l10n, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required LinearGradient gradient,
-    required VoidCallback onTap,
-    bool isAvailable = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceColor(context),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowColor(context),
-              blurRadius: 15,
-              spreadRadius: 3,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: AppColors.white, size: 24),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: AppColors.onSurfaceColor(context),
-                fontFamily: "OpenSans-SemiBold",
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: AppColors.onSurfaceSecondaryColor(context),
-                fontSize: 11,
-                height: 1.3,
-                fontFamily: "OpenSans",
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (!isAvailable) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.warning, AppColors.secondaryYellow],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  l10n.comingSoon,
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: "OpenSans-SemiBold",
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity(KartiaLocalizations l10n, HomeLoaded state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceColor(context),
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadowColor(context),
-                blurRadius: 10,
-                spreadRadius: 2,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primaryPurple, AppColors.primary],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.history_rounded,
-                  color: AppColors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                l10n.recentActivity,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurfaceColor(context),
-                  fontFamily: "OpenSans-Bold",
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: heightSpace.height!),
-
-        Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceColor(context),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadowColor(context),
-                blurRadius: 15,
-                spreadRadius: 3,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.onSurfaceSecondaryColor(
-                    context,
-                  ).withAlpha(30),
-                  borderRadius: BorderRadius.circular(60),
-                ),
-                child: Icon(
-                  Icons.history_rounded,
-                  size: 48,
-                  color: AppColors.onSurfaceSecondaryColor(context),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                l10n.noRecentActivity,
-                style: TextStyle(
-                  color: AppColors.onSurfaceSecondaryColor(context),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: "OpenSans-SemiBold",
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.startUsingServices,
-                style: TextStyle(
-                  color: AppColors.onSurfaceSecondaryColor(context),
-                  fontSize: 14,
-                  height: 1.4,
-                  fontFamily: "OpenSans",
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+              },
+            );
+          },
         ),
       ],
     );
@@ -895,14 +815,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     Icon(Icons.apps_rounded, color: AppColors.white, size: 28),
                     const SizedBox(width: 12),
-                    Text(
-                      l10n.ourServices,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.white,
-                        fontFamily: "OpenSans-Bold",
+                    Expanded(
+                      child: Text(
+                        l10n.ourServices,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.white,
+                          fontFamily: "OpenSans-Bold",
+                        ),
                       ),
                     ),
                   ],
@@ -1046,6 +968,222 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildActionCard(
+    KartiaLocalizations l10n, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required LinearGradient gradient,
+    required VoidCallback onTap,
+    bool isAvailable = false,
+    required double cardWidth,
+  }) {
+    // Adapter les tailles en fonction de la largeur de la carte
+    final double iconSize = cardWidth < 160 ? 16 : (cardWidth < 200 ? 18 : 20);
+    final double titleFontSize =
+        cardWidth < 160 ? 12 : (cardWidth < 200 ? 13 : 14);
+    final double subtitleFontSize =
+        cardWidth < 160 ? 9 : (cardWidth < 200 ? 10 : 11);
+    final double badgeFontSize = cardWidth < 160 ? 7 : 8;
+    final double padding = cardWidth < 160 ? 12 : 16;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(padding),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceColor(context),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowColor(context),
+              blurRadius: 15,
+              spreadRadius: 3,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icône
+            Container(
+              padding: EdgeInsets.all(cardWidth < 160 ? 8 : 12),
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.white, size: iconSize),
+            ),
+
+            // Espacement flexible
+            const Expanded(child: SizedBox(height: 8)),
+
+            // Titre
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: titleFontSize,
+                color: AppColors.onSurfaceColor(context),
+                fontFamily: "OpenSans-SemiBold",
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            const SizedBox(height: 4),
+
+            // Sous-titre
+            Expanded(
+              flex: 2,
+              child: Text(
+                subtitle,
+                style: TextStyle(
+                  color: AppColors.onSurfaceSecondaryColor(context),
+                  fontSize: subtitleFontSize,
+                  height: 1.3,
+                  fontFamily: "OpenSans",
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+            // Badge "À venir" si nécessaire
+            if (!isAvailable) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.warning, AppColors.secondaryYellow],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  l10n.comingSoon,
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontSize: badgeFontSize,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: "OpenSans-SemiBold",
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivity(KartiaLocalizations l10n, HomeLoaded state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceColor(context),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowColor(context),
+                blurRadius: 10,
+                spreadRadius: 2,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primaryPurple, AppColors.primary],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.history_rounded,
+                  color: AppColors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                l10n.recentActivity,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurfaceColor(context),
+                  fontFamily: "OpenSans-Bold",
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: heightSpace.height!),
+
+        Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceColor(context),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowColor(context),
+                blurRadius: 15,
+                spreadRadius: 3,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.onSurfaceSecondaryColor(
+                    context,
+                  ).withAlpha(30),
+                  borderRadius: BorderRadius.circular(60),
+                ),
+                child: Icon(
+                  Icons.history_rounded,
+                  size: 48,
+                  color: AppColors.onSurfaceSecondaryColor(context),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                l10n.noRecentActivity,
+                style: TextStyle(
+                  color: AppColors.onSurfaceSecondaryColor(context),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: "OpenSans-SemiBold",
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.startUsingServices,
+                style: TextStyle(
+                  color: AppColors.onSurfaceSecondaryColor(context),
+                  fontSize: 14,
+                  height: 1.4,
+                  fontFamily: "OpenSans",
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSettingsTab(BuildContext context, KartiaLocalizations l10n) {
     return Container(
       color: AppColors.backgroundColor(context),
@@ -1079,14 +1217,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       size: 28,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      l10n.settings,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.white,
-                        fontFamily: "OpenSans-Bold",
+                    Expanded(
+                      child: Text(
+                        l10n.settings,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.white,
+                          fontFamily: "OpenSans-Bold",
+                        ),
                       ),
                     ),
                   ],
@@ -1105,6 +1245,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         subtitle: l10n.manageProfile,
                         onTap: _navigateToProfile,
                         gradient: AppColors.primaryGradient,
+                      ),
+                      _buildSettingsTile(
+                        l10n,
+                        icon: Icons.sync,
+                        title: 'Synchronisation',
+                        subtitle: 'Synchroniser les données utilisateur',
+                        onTap: _syncUserData,
+                        gradient: LinearGradient(
+                          colors: [AppColors.info, AppColors.primary],
+                        ),
                       ),
                     ]),
 
@@ -1169,6 +1319,145 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                       ),
                     ]),
+
+                    // Section de débogage pour les développeurs
+                    if (kDebugMode) ...[
+                      SizedBox(height: heightSpace.height!),
+                      _buildSettingsSection(l10n, 'Développeur', [
+                        BlocBuilder<AuthBloc, AuthState>(
+                          builder: (context, state) {
+                            return _buildSettingsTile(
+                              l10n,
+                              icon: Icons.developer_mode,
+                              title: 'Infos de synchronisation',
+                              subtitle:
+                                  state.firestoreUser != null
+                                      ? 'Dernière sync: ${state.firestoreUser!.updatedAt.toString().substring(0, 16)}'
+                                      : 'Aucune donnée Firestore',
+                              onTap: () {
+                                // Afficher les détails de synchronisation
+                                showDialog(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: const Text(
+                                          'Infos de synchronisation',
+                                        ),
+                                        content: SingleChildScrollView(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                'État Auth: ${state.status}',
+                                              ),
+                                              Text(
+                                                'Utilisateur: ${state.user?.uid ?? 'null'}',
+                                              ),
+                                              Text(
+                                                'Firestore: ${state.firestoreUser?.userId ?? 'null'}',
+                                              ),
+                                              Text(
+                                                'Dernière sync: ${state.firestoreUser?.updatedAt ?? 'jamais'}',
+                                              ),
+                                              Text(
+                                                'Localisation active: ${state.isLocationTrackingActive}',
+                                              ),
+                                              if (state.firestoreUser !=
+                                                  null) ...[
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Version app: ${state.firestoreUser!.appInfo.version}',
+                                                ),
+                                                Text(
+                                                  'Plateforme: ${state.firestoreUser!.appInfo.platform}',
+                                                ),
+                                                Text(
+                                                  'OS: ${state.firestoreUser!.deviceInfo.osVersion}',
+                                                ),
+                                                Text(
+                                                  'Langue: ${state.firestoreUser!.deviceInfo.language}',
+                                                ),
+                                                Text(
+                                                  'Pays: ${state.firestoreUser!.currentLocation!.country}',
+                                                ),
+                                                if (state
+                                                        .firestoreUser!
+                                                        .currentLocation !=
+                                                    null) ...[
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Position: ${state.firestoreUser!.currentLocation!.coordinatesString}',
+                                                  ),
+                                                ],
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(context),
+                                            child: const Text('Fermer'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              context.read<AuthBloc>().add(
+                                                const AuthSyncUserData(),
+                                              );
+                                            },
+                                            child: const Text('Synchroniser'),
+                                          ),
+                                        ],
+                                      ),
+                                );
+                              },
+                              gradient: LinearGradient(
+                                colors: [Colors.purple, Colors.deepPurple],
+                              ),
+                            );
+                          },
+                        ),
+                        _buildSettingsTile(
+                          l10n,
+                          icon: Icons.logout,
+                          title: 'Déconnexion',
+                          subtitle: 'Se déconnecter de l\'application',
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder:
+                                  (context) => AlertDialog(
+                                    title: const Text('Déconnexion'),
+                                    content: const Text(
+                                      'Êtes-vous sûr de vouloir vous déconnecter ?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Annuler'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          context.read<AuthBloc>().add(
+                                            const AuthSignOutRequested(),
+                                          );
+                                        },
+                                        child: const Text('Déconnexion'),
+                                      ),
+                                    ],
+                                  ),
+                            );
+                          },
+                          gradient: LinearGradient(
+                            colors: [Colors.red, Colors.redAccent],
+                          ),
+                        ),
+                      ]),
+                    ],
                   ],
                 ),
               ),

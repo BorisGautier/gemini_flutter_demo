@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  cloud_firestore: ^5.6.8
   cupertino_icons: ^1.0.8
   device_info_plus: ^11.4.0
   drift: ^2.26.1
@@ -42,6 +43,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
   flutter_localizations:
     sdk: flutter
+  geocoding: ^4.0.0
   geolocator: ^14.0.0
   get_it: ^8.0.3
   http: ^1.4.0

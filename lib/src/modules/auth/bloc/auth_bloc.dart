@@ -1,24 +1,37 @@
+// lib/src/modules/auth/bloc/auth_bloc.dart (VERSION MISE À JOUR)
+
 import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kartia/src/core/services/log.service.dart';
+import 'package:kartia/src/core/services/location.service.dart';
+import 'package:kartia/src/core/services/user_sync.service.dart';
 import 'package:kartia/src/modules/auth/models/user.model.dart';
 import 'package:kartia/src/modules/auth/repositories/auth.repository.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
 
-/// BLoC pour gérer l'authentification
+/// BLoC pour gérer l'authentification avec synchronisation automatique
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepositoryInterface _authRepository;
+  final LocationService _locationService;
+  final UserSyncService _userSyncService;
   final LogService _logger;
+
   StreamSubscription<UserModel?>? _userSubscription;
+  StreamSubscription<UserLocation>? _locationSubscription;
+  Timer? _periodicSyncTimer;
 
   AuthBloc({
     required AuthRepositoryInterface authRepository,
+    required LocationService locationService,
+    required UserSyncService userSyncService,
     required LogService logger,
   }) : _authRepository = authRepository,
+       _locationService = locationService,
+       _userSyncService = userSyncService,
        _logger = logger,
        super(AuthState.initial()) {
     // Enregistrement des gestionnaires d'événements
@@ -42,11 +55,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignOutRequested>(_onSignOutRequested);
     on<AuthDeleteAccountRequested>(_onDeleteAccountRequested);
     on<AuthErrorCleared>(_onErrorCleared);
+
+    // Événements de synchronisation
+    on<AuthLocationUpdated>(_onLocationUpdated);
+    on<AuthStartLocationTracking>(_onStartLocationTracking);
+    on<AuthStopLocationTracking>(_onStopLocationTracking);
+    on<AuthFirestoreUserLoaded>(_onFirestoreUserLoaded);
+    on<AuthSyncUserData>(_onSyncUserData);
+    on<AuthPeriodicSyncTriggered>(_onPeriodicSyncTriggered);
   }
 
-  /// Initialiser l'authentification
+  /// Initialiser l'authentification avec synchronisation
   void _onAuthInitialized(AuthInitialized event, Emitter<AuthState> emit) {
-    _logger.info('BLoC: Initialisation de l\'authentification');
+    _logger.info(
+      'BLoC: Initialisation de l\'authentification avec synchronisation',
+    );
 
     // Écouter les changements d'état d'authentification
     _userSubscription = _authRepository.authStateChanges.listen(
@@ -59,7 +82,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       },
     );
 
-    // ✅ NOUVEAU : Vérifier l'utilisateur actuel au démarrage
+    // Vérifier l'utilisateur actuel au démarrage
     final currentUser = _authRepository.currentUser;
     if (currentUser != null) {
       _logger.info(
@@ -72,36 +95,151 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  /// Gérer les changements d'utilisateur
-  void _onAuthUserChanged(AuthUserChanged event, Emitter<AuthState> emit) {
+  /// Gérer les changements d'utilisateur avec synchronisation automatique
+  void _onAuthUserChanged(
+    AuthUserChanged event,
+    Emitter<AuthState> emit,
+  ) async {
     _logger.info('BLoC: Changement d\'utilisateur: ${event.user?.uid}');
 
     if (event.user != null) {
-      // ✅ AMÉLIORATION : Logique plus claire pour la vérification d'email
       final user = event.user!;
 
-      // Si l'utilisateur est anonyme ou a un numéro de téléphone, pas besoin de vérification email
-      if (user.isAnonymous || user.phoneNumber != null) {
-        _logger.info('BLoC: Utilisateur authentifié (anonyme ou téléphone)');
-        emit(state.authenticated(user));
-      }
-      // Si l'utilisateur a un email mais qu'il n'est pas vérifié
-      else if (user.email != null && !user.emailVerified) {
-        _logger.info(
-          'BLoC: Email non vérifié, utilisateur en attente de vérification',
+      try {
+        emit(state.loading());
+
+        // Récupérer les données Firestore existantes
+        final existingFirestoreUser = await _authRepository.getFirestoreUser(
+          user.uid,
         );
-        emit(state.emailNotVerified(user));
-      }
-      // Utilisateur complètement authentifié
-      else {
-        _logger.info('BLoC: Utilisateur authentifié avec succès');
-        emit(state.authenticated(user));
+
+        // Synchroniser les données utilisateur
+        _logger.info('BLoC: Synchronisation des données utilisateur...');
+        final syncedFirestoreUser = await _userSyncService
+            .syncUserDataOnAppStart(
+              authUser: user,
+              existingFirestoreUser: existingFirestoreUser,
+            );
+
+        if (syncedFirestoreUser != null) {
+          add(AuthFirestoreUserLoaded(syncedFirestoreUser));
+        }
+
+        // Démarrer le suivi de localisation si l'utilisateur l'autorise
+        if (syncedFirestoreUser?.preferences.locationSharingEnabled ?? true) {
+          add(const AuthStartLocationTracking());
+        }
+
+        // Démarrer la synchronisation périodique
+        _startPeriodicSync();
+
+        // Déterminer l'état basé sur la vérification
+        if (user.isAnonymous || user.phoneNumber != null) {
+          _logger.info('BLoC: Utilisateur authentifié (anonyme ou téléphone)');
+          emit(state.authenticated(user, syncedFirestoreUser));
+        } else if (user.email != null && !user.emailVerified) {
+          _logger.info(
+            'BLoC: Email non vérifié, utilisateur en attente de vérification',
+          );
+          emit(state.emailNotVerified(user, syncedFirestoreUser));
+        } else {
+          _logger.info('BLoC: Utilisateur authentifié avec succès');
+          emit(state.authenticated(user, syncedFirestoreUser));
+        }
+      } catch (e) {
+        _logger.error(
+          'Erreur lors de la synchronisation des données utilisateur',
+          e,
+        );
+        // Continuer avec l'auth de base même si la synchronisation échoue
+        if (user.isAnonymous || user.phoneNumber != null) {
+          emit(state.authenticated(user, null));
+        } else if (user.email != null && !user.emailVerified) {
+          emit(state.emailNotVerified(user, null));
+        } else {
+          emit(state.authenticated(user, null));
+        }
       }
     } else {
       _logger.info('BLoC: Aucun utilisateur, état non authentifié');
+      add(const AuthStopLocationTracking());
+      _stopPeriodicSync();
       emit(state.unauthenticated());
     }
   }
+
+  /// Synchronisation manuelle des données utilisateur
+  Future<void> _onSyncUserData(
+    AuthSyncUserData event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null) return;
+
+    try {
+      _logger.info('BLoC: Synchronisation manuelle des données utilisateur');
+
+      final syncedFirestoreUser = await _userSyncService.syncUserDataOnAppStart(
+        authUser: state.user!,
+        existingFirestoreUser: state.firestoreUser,
+      );
+
+      if (syncedFirestoreUser != null) {
+        emit(state.copyWith(firestoreUser: syncedFirestoreUser));
+        _logger.info('BLoC: Synchronisation manuelle terminée avec succès');
+      }
+    } catch (e) {
+      _logger.error('Erreur lors de la synchronisation manuelle', e);
+    }
+  }
+
+  /// Synchronisation périodique
+  Future<void> _onPeriodicSyncTriggered(
+    AuthPeriodicSyncTriggered event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null || state.firestoreUser == null) return;
+
+    try {
+      // Vérifier si une synchronisation est nécessaire
+      final shouldSync = await _userSyncService.shouldSync(
+        state.firestoreUser!,
+      );
+
+      if (shouldSync) {
+        _logger.info('BLoC: Synchronisation périodique nécessaire');
+        add(const AuthSyncUserData());
+      } else {
+        _logger.debug('BLoC: Synchronisation périodique non nécessaire');
+      }
+    } catch (e) {
+      _logger.error(
+        'Erreur lors de la vérification de synchronisation périodique',
+        e,
+      );
+    }
+  }
+
+  /// Démarrer la synchronisation périodique (toutes les heures)
+  void _startPeriodicSync() {
+    _stopPeriodicSync(); // Arrêter le timer existant s'il y en a un
+
+    _periodicSyncTimer = Timer.periodic(const Duration(hours: 1), (timer) {
+      if (!isClosed) {
+        add(const AuthPeriodicSyncTriggered());
+      }
+    });
+
+    _logger.info('BLoC: Synchronisation périodique démarrée');
+  }
+
+  /// Arrêter la synchronisation périodique
+  void _stopPeriodicSync() {
+    _periodicSyncTimer?.cancel();
+    _periodicSyncTimer = null;
+    _logger.info('BLoC: Synchronisation périodique arrêtée');
+  }
+
+  // === MÉTHODES D'AUTHENTIFICATION INCHANGÉES ===
 
   /// Connexion avec email et mot de passe
   Future<void> _onSignInWithEmailAndPasswordRequested(
@@ -120,7 +258,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion réussie');
-        // ✅ L'état sera mis à jour via AuthUserChanged qui vérifie l'email
+        // L'état sera mis à jour via AuthUserChanged avec synchronisation automatique
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion Firebase: ${e.code}', e);
@@ -151,7 +289,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Inscription réussie');
-        // ✅ L'état sera mis à jour via AuthUserChanged qui détectera l'email non vérifié
+        // L'état sera mis à jour via AuthUserChanged avec synchronisation automatique
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur d\'inscription Firebase: ${e.code}', e);
@@ -178,7 +316,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion anonyme réussie');
-        // L'état sera mis à jour via AuthUserChanged
+        // L'état sera mis à jour via AuthUserChanged avec synchronisation automatique
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion anonyme: ${e.code}', e);
@@ -204,7 +342,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _authRepository.verifyPhoneNumber(
         phoneNumber: event.phoneNumber,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          // Connexion automatique réussie (Android uniquement)
           _logger.info('BLoC: Vérification automatique du téléphone réussie');
         },
         verificationFailed: (FirebaseAuthException e) {
@@ -212,7 +349,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             'BLoC: Échec de la vérification du téléphone: ${e.code}',
             e,
           );
-          // ✅ CORRECTION 2: Ne pas appeler AuthErrorCleared, juste émettre l'erreur
           add(
             AuthPhoneVerificationFailed(
               message: _getLocalizedFirebaseError(e.code),
@@ -250,7 +386,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
-  /// ✅ CORRECTION 3: Nouveau gestionnaire pour les erreurs de vérification téléphone
+  /// Erreur de vérification téléphone
   void _onPhoneVerificationFailed(
     AuthPhoneVerificationFailed event,
     Emitter<AuthState> emit,
@@ -276,7 +412,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         _logger.info('BLoC: Connexion par téléphone réussie');
-        // L'état sera mis à jour via AuthUserChanged
+        // L'état sera mis à jour via AuthUserChanged avec synchronisation automatique
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion par téléphone: ${e.code}', e);
@@ -332,7 +468,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       _logger.info('BLoC: Profil utilisateur mis à jour');
-      // L'état sera mis à jour via AuthUserChanged
+
+      // Déclencher une synchronisation pour mettre à jour Firestore
+      add(const AuthSyncUserData());
     } catch (e) {
       _logger.error('BLoC: Erreur de mise à jour du profil: $e', e);
       emit(state.error(message: 'Erreur lors de la mise à jour du profil'));
@@ -354,7 +492,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _authRepository.updatePassword(newPassword: event.newPassword);
 
       _logger.info('BLoC: Mot de passe mis à jour');
-      emit(state.authenticated(state.user!));
+      emit(state.authenticated(state.user!, state.firestoreUser));
     } on FirebaseAuthException catch (e) {
       _logger.error(
         'BLoC: Erreur de mise à jour du mot de passe: ${e.code}',
@@ -398,6 +536,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       _logger.info('BLoC: Déconnexion demandée');
 
+      // Arrêter le suivi de localisation et la synchronisation
+      add(const AuthStopLocationTracking());
+      _stopPeriodicSync();
+
       await _authRepository.signOut();
 
       _logger.info('BLoC: Déconnexion réussie');
@@ -415,6 +557,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     try {
       _logger.info('BLoC: Suppression du compte demandée');
+
+      // Arrêter le suivi de localisation et la synchronisation
+      add(const AuthStopLocationTracking());
+      _stopPeriodicSync();
 
       await _authRepository.deleteAccount();
 
@@ -435,13 +581,81 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   void _onErrorCleared(AuthErrorCleared event, Emitter<AuthState> emit) {
     if (state.user != null) {
       if (state.status == AuthStatus.emailNotVerified) {
-        emit(state.emailNotVerified(state.user!));
+        emit(state.emailNotVerified(state.user!, state.firestoreUser));
       } else {
-        emit(state.authenticated(state.user!));
+        emit(state.authenticated(state.user!, state.firestoreUser));
       }
     } else {
       emit(state.unauthenticated());
     }
+  }
+
+  // === GESTIONNAIRES DE LOCALISATION ET FIRESTORE ===
+
+  /// Mise à jour de la localisation
+  void _onLocationUpdated(
+    AuthLocationUpdated event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user != null) {
+      try {
+        await _authRepository.updateUserLocation(
+          state.user!.uid,
+          event.location,
+        );
+        _logger.debug(
+          'Position mise à jour: ${event.location.latitude}, ${event.location.longitude}',
+        );
+
+        // Mettre à jour l'état avec la nouvelle position
+        if (state.firestoreUser != null) {
+          final updatedFirestoreUser = state.firestoreUser!.copyWith(
+            currentLocation: event.location,
+          );
+          emit(state.copyWith(firestoreUser: updatedFirestoreUser));
+        }
+      } catch (e) {
+        _logger.error('Erreur lors de la mise à jour de la position', e);
+      }
+    }
+  }
+
+  /// Démarrer le suivi de localisation
+  void _onStartLocationTracking(
+    AuthStartLocationTracking event,
+    Emitter<AuthState> emit,
+  ) {
+    _logger.info('BLoC: Démarrage du suivi de localisation');
+
+    _locationSubscription?.cancel();
+    _locationSubscription = _locationService.startLocationTracking().listen(
+      (location) {
+        add(AuthLocationUpdated(location));
+      },
+      onError: (error) {
+        _logger.error('Erreur dans le stream de localisation', error);
+      },
+    );
+  }
+
+  /// Arrêter le suivi de localisation
+  void _onStopLocationTracking(
+    AuthStopLocationTracking event,
+    Emitter<AuthState> emit,
+  ) {
+    _logger.info('BLoC: Arrêt du suivi de localisation');
+    _locationSubscription?.cancel();
+    _locationSubscription = null;
+    _locationService.stopLocationTracking();
+  }
+
+  /// Utilisateur Firestore chargé
+  void _onFirestoreUserLoaded(
+    AuthFirestoreUserLoaded event,
+    Emitter<AuthState> emit,
+  ) {
+    _logger.info('BLoC: Données Firestore utilisateur chargées');
+    emit(state.copyWith(firestoreUser: event.firestoreUser));
   }
 
   /// Obtenir le message d'erreur localisé pour les erreurs Firebase
@@ -481,6 +695,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   Future<void> close() {
     _userSubscription?.cancel();
+    _locationSubscription?.cancel();
+    _stopPeriodicSync();
+    _locationService.dispose();
     return super.close();
   }
 }

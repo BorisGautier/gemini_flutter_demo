@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kartia/src/core/services/auth.service.dart';
 import 'package:kartia/src/core/services/log.service.dart';
+import 'package:kartia/src/core/services/firestore_user.service.dart';
 import 'package:kartia/src/modules/auth/models/user.model.dart';
 
 /// Interface pour le repository d'authentification
@@ -42,16 +43,25 @@ abstract class AuthRepositoryInterface {
   Future<void> sendEmailVerification();
   Future<void> signOut();
   Future<void> deleteAccount();
+
+  Future<FirestoreUserModel?> getFirestoreUser(String userId);
+  Future<void> updateFirestoreUser(String userId, Map<String, dynamic> updates);
+  Future<void> updateUserLocation(String userId, UserLocation location);
 }
 
-/// Repository concret pour l'authentification
+/// Repository concret pour l'authentification avec intégration Firestore
 class AuthRepository implements AuthRepositoryInterface {
   final AuthService _authService;
+  final FirestoreUserService _firestoreUserService;
   final LogService _logger;
 
-  AuthRepository({required AuthService authService, required LogService logger})
-    : _authService = authService,
-      _logger = logger;
+  AuthRepository({
+    required AuthService authService,
+    required FirestoreUserService firestoreUserService,
+    required LogService logger,
+  }) : _authService = authService,
+       _firestoreUserService = firestoreUserService,
+       _logger = logger;
 
   @override
   Stream<UserModel?> get authStateChanges {
@@ -59,6 +69,8 @@ class AuthRepository implements AuthRepositoryInterface {
       final userModel = _authService.firebaseUserToUserModel(user);
       if (userModel != null) {
         _logger.info('État d\'authentification changé: ${userModel.uid}');
+        // Mettre à jour la dernière connexion dans Firestore
+        _firestoreUserService.updateLastSignIn(userModel.uid);
       } else {
         _logger.info('Utilisateur déconnecté');
       }
@@ -91,6 +103,18 @@ class AuthRepository implements AuthRepositoryInterface {
 
       if (userModel != null) {
         _logger.info('Repository: Connexion réussie pour ${userModel.uid}');
+
+        // Vérifier si l'utilisateur existe dans Firestore
+        final firestoreUser = await _firestoreUserService.getUser(
+          userModel.uid,
+        );
+        if (firestoreUser == null) {
+          _logger.info('Utilisateur non trouvé dans Firestore, création...');
+          await _createFirestoreUserFromAuth(userModel);
+        } else {
+          // Mettre à jour la dernière connexion
+          await _firestoreUserService.updateLastSignIn(userModel.uid);
+        }
       }
 
       return userModel;
@@ -120,6 +144,12 @@ class AuthRepository implements AuthRepositoryInterface {
       if (userModel != null) {
         _logger.info('Repository: Inscription réussie pour ${userModel.uid}');
 
+        // Créer l'utilisateur dans Firestore
+        await _createFirestoreUserFromAuth(
+          userModel,
+          fullName: displayName ?? email.split('@')[0],
+        );
+
         // Envoyer l'email de vérification automatiquement
         await sendEmailVerification();
       }
@@ -142,6 +172,12 @@ class AuthRepository implements AuthRepositoryInterface {
       if (userModel != null) {
         _logger.info(
           'Repository: Connexion anonyme réussie pour ${userModel.uid}',
+        );
+
+        // Créer l'utilisateur anonyme dans Firestore
+        await _createFirestoreUserFromAuth(
+          userModel,
+          fullName: 'Utilisateur Anonyme',
         );
       }
 
@@ -197,6 +233,23 @@ class AuthRepository implements AuthRepositoryInterface {
         _logger.info(
           'Repository: Connexion par téléphone réussie pour ${userModel.uid}',
         );
+
+        // Vérifier si l'utilisateur existe dans Firestore
+        final firestoreUser = await _firestoreUserService.getUser(
+          userModel.uid,
+        );
+        if (firestoreUser == null) {
+          _logger.info(
+            'Nouvel utilisateur téléphone, création dans Firestore...',
+          );
+          await _createFirestoreUserFromAuth(
+            userModel,
+            fullName: userModel.phoneNumber ?? 'Utilisateur Téléphone',
+          );
+        } else {
+          // Mettre à jour la dernière connexion
+          await _firestoreUserService.updateLastSignIn(userModel.uid);
+        }
       }
 
       return userModel;
@@ -235,6 +288,22 @@ class AuthRepository implements AuthRepositoryInterface {
         displayName: displayName,
         photoURL: photoURL,
       );
+
+      // Mettre à jour aussi dans Firestore
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        final updates = <String, dynamic>{};
+        if (displayName != null) {
+          updates['fullName'] = displayName;
+        }
+        if (photoURL != null) {
+          updates['photoURL'] = photoURL;
+        }
+
+        if (updates.isNotEmpty) {
+          await _firestoreUserService.updateUser(currentUser.uid, updates);
+        }
+      }
 
       _logger.info('Repository: Profil utilisateur mis à jour avec succès');
     } catch (e) {
@@ -288,14 +357,91 @@ class AuthRepository implements AuthRepositoryInterface {
   @override
   Future<void> deleteAccount() async {
     try {
-      _logger.info('Repository: Suppression du compte utilisateur');
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        _logger.info('Repository: Suppression du compte utilisateur');
 
-      await _authService.deleteAccount();
+        // Supprimer d'abord de Firestore
+        await _firestoreUserService.deleteUser(currentUser.uid);
 
-      _logger.info('Repository: Compte supprimé avec succès');
+        // Puis supprimer de Firebase Auth
+        await _authService.deleteAccount();
+
+        _logger.info('Repository: Compte supprimé avec succès');
+      }
     } catch (e) {
       _logger.error('Repository: Erreur de suppression du compte', e);
       rethrow;
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES FIRESTORE
+
+  @override
+  Future<FirestoreUserModel?> getFirestoreUser(String userId) async {
+    try {
+      return await _firestoreUserService.getUser(userId);
+    } catch (e) {
+      _logger.error(
+        'Repository: Erreur de récupération utilisateur Firestore',
+        e,
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<void> updateFirestoreUser(
+    String userId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      await _firestoreUserService.updateUser(userId, updates);
+    } catch (e) {
+      _logger.error(
+        'Repository: Erreur de mise à jour utilisateur Firestore',
+        e,
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateUserLocation(String userId, UserLocation location) async {
+    try {
+      await _firestoreUserService.updateUserLocation(userId, location);
+    } catch (e) {
+      _logger.error(
+        'Repository: Erreur de mise à jour position utilisateur',
+        e,
+      );
+      rethrow;
+    }
+  }
+
+  /// Méthode privée pour créer un utilisateur Firestore à partir d'un utilisateur Auth
+  Future<void> _createFirestoreUserFromAuth(
+    UserModel authUser, {
+    String? fullName,
+  }) async {
+    try {
+      final name =
+          fullName ??
+          authUser.displayName ??
+          authUser.email?.split('@')[0] ??
+          authUser.phoneNumber ??
+          'Utilisateur';
+
+      await _firestoreUserService.createUser(
+        authUser: authUser,
+        fullName: name,
+      );
+    } catch (e) {
+      _logger.error(
+        'Erreur lors de la création de l\'utilisateur Firestore',
+        e,
+      );
+      // Ne pas faire échouer l'authentification pour une erreur Firestore
     }
   }
 }
