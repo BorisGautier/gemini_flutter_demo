@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kartia/src/core/services/image_upload.service.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:kartia/src/core/services/auth.service.dart';
@@ -15,6 +16,7 @@ import 'auth_repository_test.mocks.dart';
   AuthService,
   LogService,
   FirestoreUserService,
+  ImageUploadService,
   UserCredential,
   User,
 ])
@@ -23,6 +25,7 @@ void main() {
     late AuthRepository authRepository;
     late MockAuthService mockAuthService;
     late MockLogService mockLogService;
+    late MockImageUploadService mockImageUploadService;
     late MockFirestoreUserService mockFirestoreUserService;
     late MockUserCredential mockUserCredential;
     late MockUser mockUser;
@@ -69,12 +72,14 @@ void main() {
       mockAuthService = MockAuthService();
       mockLogService = MockLogService();
       mockFirestoreUserService = MockFirestoreUserService();
+      mockImageUploadService = MockImageUploadService();
       mockUserCredential = MockUserCredential();
       mockUser = MockUser();
 
       authRepository = AuthRepository(
         authService: mockAuthService,
         firestoreUserService: mockFirestoreUserService,
+        imageUploadService: mockImageUploadService,
         logger: mockLogService,
       );
 

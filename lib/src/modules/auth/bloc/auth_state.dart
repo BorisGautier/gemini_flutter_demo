@@ -14,6 +14,8 @@ enum AuthStatus {
   /// En cours de traitement d'une demande d'authentification
   loading,
 
+  updatingProfile,
+
   /// Vérification du numéro de téléphone en cours
   phoneVerificationInProgress,
 
@@ -85,6 +87,30 @@ class AuthState extends Equatable {
       isLoading: false,
       currentLocation: null,
       isLocationTrackingActive: false,
+    );
+  }
+
+  /// État de mise à jour de profil en cours
+  AuthState updatingProfile() {
+    return copyWith(
+      status: AuthStatus.updatingProfile,
+      isLoading: true,
+      errorMessage: null,
+      errorCode: null,
+    );
+  }
+
+  /// Vérifier si une mise à jour de profil est en cours
+  bool get isUpdatingProfile => status == AuthStatus.updatingProfile;
+
+  /// ✅ Méthode pour maintenir l'utilisateur connecté pendant la mise à jour
+  AuthState profileUpdating() {
+    return copyWith(
+      status: AuthStatus.updatingProfile,
+      isLoading: true,
+      errorMessage: null,
+      errorCode: null,
+      // ✅ IMPORTANT: Ne pas effacer user et firestoreUser
     );
   }
 

@@ -1,3 +1,5 @@
+// lib/src/core/routes/app.routes.dart (VERSION MISE À JOUR)
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
@@ -7,11 +9,13 @@ import 'package:kartia/src/modules/auth/views/profile.screen.dart';
 import 'package:kartia/src/modules/auth/views/register.screen.dart';
 import 'package:kartia/src/modules/auth/views/phone_auth.screen.dart';
 import 'package:kartia/src/modules/auth/views/forgot_password.screen.dart';
+import 'package:kartia/src/modules/auth/views/upgrade_account.screen.dart'; // ✅ NOUVEAU
 import 'package:kartia/src/modules/home/views/home.screen.dart';
 import 'package:kartia/src/modules/splash/views/splash.screen.dart';
 
 /// Classe pour gérer les routes de l'application
 class AppRoutes {
+  // Routes existantes
   static const String splash = '/splash';
   static const String login = '/login';
   static const String register = '/register';
@@ -20,6 +24,17 @@ class AppRoutes {
   static const String home = '/home';
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';
+
+  // ✅ NOUVELLES ROUTES
+  static const String upgradeAccount = '/upgrade-account';
+  static const String phoneVerification = '/phone-verification';
+  static const String linkPhoneNumber = '/link-phone';
+  static const String accountSecurity = '/account-security';
+  static const String resetPassword = '/reset-password';
+  static const String parametres = '/settings';
+  static const String notifications = '/notifications';
+  static const String privacy = '/privacy';
+  static const String about = '/about';
 
   /// Liste de toutes les routes disponibles
   static List<String> get allRoutes => [
@@ -31,6 +46,15 @@ class AppRoutes {
     home,
     profile,
     editProfile,
+    upgradeAccount,
+    phoneVerification,
+    linkPhoneNumber,
+    accountSecurity,
+    resetPassword,
+    parametres,
+    notifications,
+    privacy,
+    about,
   ];
 
   /// Routes qui ne nécessitent pas d'authentification
@@ -40,10 +64,25 @@ class AppRoutes {
     register,
     phoneAuth,
     forgotPassword,
+    resetPassword,
   ];
 
   /// Routes qui nécessitent une authentification
-  static List<String> get protectedRoutes => [home, profile, editProfile];
+  static List<String> get protectedRoutes => [
+    home,
+    profile,
+    editProfile,
+    upgradeAccount,
+    linkPhoneNumber,
+    accountSecurity,
+    parametres,
+    notifications,
+    privacy,
+    about,
+  ];
+
+  /// Routes accessibles uniquement aux comptes anonymes
+  static List<String> get anonymousOnlyRoutes => [upgradeAccount];
 
   /// Générer les routes de l'application
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -52,14 +91,11 @@ class AppRoutes {
         return _buildRoute(settings, const SplashScreen());
 
       case login:
-        // Pour les routes d'authentification, on utilise le BlocBuilder pour s'assurer
-        // que si l'utilisateur est déjà connecté, on affiche la bonne page
         return _buildRoute(
           settings,
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, state) {
               if (state.isAuthenticated) {
-                // Si déjà connecté, rediriger vers l'accueil
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   Navigator.of(context).pushReplacementNamed(home);
                 });
@@ -87,11 +123,12 @@ class AppRoutes {
         );
 
       case phoneAuth:
+      case phoneVerification:
         return _buildRoute(
           settings,
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, state) {
-              if (state.isAuthenticated) {
+              if (state.isAuthenticated && !state.user!.isAnonymous) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   Navigator.of(context).pushReplacementNamed(home);
                 });
@@ -166,6 +203,58 @@ class AppRoutes {
           ),
         );
 
+      // ✅ NOUVELLE ROUTE : Mise à niveau de compte
+      case upgradeAccount:
+        return _buildRoute(
+          settings,
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              // Vérifier que l'utilisateur est connecté et anonyme
+              if (!state.isAuthenticated) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(login);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              // Si l'utilisateur n'est pas anonyme, rediriger vers le profil
+              if (!state.user!.isAnonymous) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(profile);
+                });
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              return const UpgradeAccountScreen();
+            },
+          ),
+        );
+
+      // ✅ ROUTES À IMPLÉMENTER PLUS TARD
+      case linkPhoneNumber:
+        return _buildComingSoonRoute(settings, 'Liaison de téléphone');
+
+      case accountSecurity:
+        return _buildComingSoonRoute(settings, 'Sécurité du compte');
+
+      case resetPassword:
+        return _buildComingSoonRoute(
+          settings,
+          'Réinitialisation du mot de passe',
+        );
+
+      case parametres:
+        return _buildComingSoonRoute(settings, 'Paramètres');
+
+      case notifications:
+        return _buildComingSoonRoute(settings, 'Notifications');
+
+      case privacy:
+        return _buildComingSoonRoute(settings, 'Confidentialité');
+
+      case about:
+        return _buildComingSoonRoute(settings, 'À propos');
+
       default:
         return _buildErrorRoute(settings);
     }
@@ -192,6 +281,76 @@ class AppRoutes {
         return SlideTransition(position: offsetAnimation, child: child);
       },
       transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
+
+  /// ✅ NOUVEAU : Construire une route "à venir"
+  static PageRoute _buildComingSoonRoute(
+    RouteSettings settings,
+    String featureName,
+  ) {
+    return MaterialPageRoute(
+      settings: settings,
+      builder:
+          (context) => Scaffold(
+            appBar: AppBar(
+              title: Text(featureName),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+            ),
+            body: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Theme.of(context).primaryColor.withAlpha(10),
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withAlpha(10),
+                        borderRadius: BorderRadius.circular(60),
+                      ),
+                      child: Icon(
+                        Icons.construction,
+                        size: 64,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Bientôt Disponible',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        '$featureName sera bientôt disponible. Nous travaillons dur pour vous offrir cette fonctionnalité !',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Retour'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
     );
   }
 
@@ -238,6 +397,43 @@ class AppRoutes {
   /// Vérifier si une route est protégée
   static bool isProtectedRoute(String route) {
     return protectedRoutes.contains(route);
+  }
+
+  /// ✅ NOUVEAU : Vérifier si une route est réservée aux comptes anonymes
+  static bool isAnonymousOnlyRoute(String route) {
+    return anonymousOnlyRoutes.contains(route);
+  }
+
+  /// ✅ NOUVEAU : Vérifier si un utilisateur peut accéder à une route
+  static bool canAccessRoute(String route, AuthState authState) {
+    // Routes publiques : toujours accessibles
+    if (isPublicRoute(route)) return true;
+
+    // Routes protégées : nécessitent une authentification
+    if (isProtectedRoute(route) && !authState.isAuthenticated) return false;
+
+    // Routes pour comptes anonymes uniquement
+    if (isAnonymousOnlyRoute(route)) {
+      return authState.isAuthenticated &&
+          (authState.user?.isAnonymous ?? false);
+    }
+
+    return true;
+  }
+
+  /// ✅ NOUVEAU : Obtenir la route de redirection appropriée
+  static String getRedirectRoute(String intendedRoute, AuthState authState) {
+    if (!canAccessRoute(intendedRoute, authState)) {
+      if (!authState.isAuthenticated) {
+        return login;
+      } else if (authState.user?.isAnonymous == true &&
+          !isAnonymousOnlyRoute(intendedRoute)) {
+        return home;
+      } else {
+        return home;
+      }
+    }
+    return intendedRoute;
   }
 
   /// Naviguer vers une route
@@ -296,18 +492,12 @@ class AuthGuard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        final isProtectedRoute = AppRoutes.isProtectedRoute(route);
-        final isAuthenticated = state.isAuthenticated;
+        final redirectRoute = AppRoutes.getRedirectRoute(route, state);
 
-        // Si l'utilisateur n'est pas connecté et essaie d'accéder à une route protégée
-        if (isProtectedRoute && !isAuthenticated) {
-          AppRoutes.navigateToAndClearStack(context, AppRoutes.login);
-        }
-        // Si l'utilisateur est connecté et se trouve sur une route publique
-        else if (!isProtectedRoute &&
-            isAuthenticated &&
-            route != AppRoutes.splash) {
-          AppRoutes.navigateToAndClearStack(context, AppRoutes.home);
+        if (redirectRoute != route) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            AppRoutes.navigateToAndClearStack(context, redirectRoute);
+          });
         }
       },
       child: child,
@@ -364,27 +554,13 @@ extension NavigationExtensions on BuildContext {
 
 /// Middleware pour intercepter la navigation
 class NavigationMiddleware {
-  /// Intercepter la navigation pour vérifier l'authentification
-  static bool canNavigateTo(String route, bool isAuthenticated) {
-    // Les routes publiques sont toujours accessibles
-    if (AppRoutes.isPublicRoute(route)) {
-      return true;
-    }
-
-    // Les routes protégées nécessitent une authentification
-    if (AppRoutes.isProtectedRoute(route)) {
-      return isAuthenticated;
-    }
-
-    // Par défaut, permettre la navigation
-    return true;
+  /// ✅ MISE À JOUR : Intercepter la navigation avec état d'authentification complet
+  static bool canNavigateTo(String route, AuthState authState) {
+    return AppRoutes.canAccessRoute(route, authState);
   }
 
-  /// Obtenir la route de redirection appropriée
-  static String getRedirectRoute(String intendedRoute, bool isAuthenticated) {
-    if (!canNavigateTo(intendedRoute, isAuthenticated)) {
-      return isAuthenticated ? AppRoutes.home : AppRoutes.login;
-    }
-    return intendedRoute;
+  /// ✅ MISE À JOUR : Obtenir la route de redirection appropriée
+  static String getRedirectRoute(String intendedRoute, AuthState authState) {
+    return AppRoutes.getRedirectRoute(intendedRoute, authState);
   }
 }

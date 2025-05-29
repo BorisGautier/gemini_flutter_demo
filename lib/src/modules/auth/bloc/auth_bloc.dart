@@ -1,6 +1,7 @@
 // lib/src/modules/auth/bloc/auth_bloc.dart (VERSION MISE À JOUR)
 
 import 'dart:async';
+import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -49,7 +50,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthPhoneVerificationFailed>(_onPhoneVerificationFailed);
     on<AuthSignInWithPhoneNumberRequested>(_onSignInWithPhoneNumberRequested);
     on<AuthPasswordResetRequested>(_onPasswordResetRequested);
-    on<AuthUpdateUserProfileRequested>(_onUpdateUserProfileRequested);
     on<AuthUpdatePasswordRequested>(_onUpdatePasswordRequested);
     on<AuthSendEmailVerificationRequested>(_onSendEmailVerificationRequested);
     on<AuthSignOutRequested>(_onSignOutRequested);
@@ -63,6 +63,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthFirestoreUserLoaded>(_onFirestoreUserLoaded);
     on<AuthSyncUserData>(_onSyncUserData);
     on<AuthPeriodicSyncTriggered>(_onPeriodicSyncTriggered);
+
+    on<AuthUpdateUserProfileRequested>(_onUpdateUserProfileRequestedWithImage);
+    on<AuthUpgradeAnonymousAccountRequested>(
+      _onUpgradeAnonymousAccountRequested,
+    );
+    on<AuthLinkPhoneNumberRequested>(_onLinkPhoneNumberRequested);
+    on<AuthStartPhoneLinkingRequested>(_onStartPhoneLinkingRequested);
+    on<AuthUpgradeAnonymousToPhoneRequested>(
+      _onUpgradeAnonymousToPhoneRequested,
+    );
   }
 
   /// Initialiser l'authentification avec synchronisation
@@ -106,7 +116,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = event.user!;
 
       try {
-        emit(state.loading());
+        final isProfileUpdate =
+            state.user != null &&
+            state.user!.uid == user.uid &&
+            state.status == AuthStatus.authenticated;
+
+        if (!isProfileUpdate) {
+          emit(state.loading());
+        }
 
         // Récupérer les données Firestore existantes
         final existingFirestoreUser = await _authRepository.getFirestoreUser(
@@ -126,12 +143,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
 
         // Démarrer le suivi de localisation si l'utilisateur l'autorise
-        if (syncedFirestoreUser?.preferences.locationSharingEnabled ?? true) {
+        if (!isProfileUpdate &&
+            (syncedFirestoreUser?.preferences.locationSharingEnabled ?? true)) {
           add(const AuthStartLocationTracking());
         }
 
-        // Démarrer la synchronisation périodique
-        _startPeriodicSync();
+        // Démarrer la synchronisation périodique seulement pour les nouvelles connexions
+        if (!isProfileUpdate) {
+          _startPeriodicSync();
+        }
 
         // Déterminer l'état basé sur la vérification
         if (user.isAnonymous || user.phoneNumber != null) {
@@ -405,20 +425,91 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       _logger.info('BLoC: Tentative de connexion avec le code SMS');
 
-      final user = await _authRepository.signInWithPhoneNumber(
+      final credential = PhoneAuthProvider.credential(
         verificationId: event.verificationId,
         smsCode: event.smsCode,
       );
 
-      if (user != null) {
-        _logger.info('BLoC: Connexion par téléphone réussie');
-        // L'état sera mis à jour via AuthUserChanged avec synchronisation automatique
+      // ✅ NOUVEAU: Vérifier si c'est un upgrade d'un compte anonyme
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null && currentUser.isAnonymous) {
+        _logger.info('BLoC: Upgrade de compte anonyme vers téléphone');
+
+        // Lier le credential au compte anonyme existant
+        final UserCredential userCredential = await currentUser
+            .linkWithCredential(credential);
+
+        if (userCredential.user != null) {
+          _logger.info(
+            'BLoC: Compte anonyme mis à niveau vers téléphone avec succès',
+          );
+
+          // Mettre à jour les données Firestore
+          final updates = <String, dynamic>{
+            'phoneNumber': userCredential.user!.phoneNumber,
+            'phoneVerified': true,
+            'isAnonymous': false,
+            'authProvider': 'phone',
+            'updatedAt': DateTime.now(),
+          };
+
+          await _authRepository.updateFirestoreUser(currentUser.uid, updates);
+
+          // Récupérer les données Firestore mises à jour
+          final updatedFirestoreUser = await _authRepository.getFirestoreUser(
+            currentUser.uid,
+          );
+
+          // Émettre l'état authentifié mis à jour
+          emit(state.authenticated(state.user!, updatedFirestoreUser));
+          return; // ✅ Important: sortir de la méthode ici
+        }
+      } else {
+        // ✅ Connexion normale (pas d'upgrade)
+        final userCredential = await _authRepository.signInWithPhoneNumber(
+          verificationId: event.verificationId,
+          smsCode: event.smsCode,
+        );
+
+        if (userCredential != null) {
+          _logger.info('BLoC: Connexion par téléphone réussie');
+          // L'état sera mis à jour via AuthUserChanged
+        }
       }
     } on FirebaseAuthException catch (e) {
       _logger.error('BLoC: Erreur de connexion par téléphone: ${e.code}', e);
-      emit(
-        state.error(message: _getLocalizedFirebaseError(e.code), code: e.code),
-      );
+
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMessage =
+              'Code de vérification invalide. Vérifiez le code et réessayez.';
+          break;
+        case 'invalid-verification-id':
+          errorMessage =
+              'Session expirée. Veuillez recommencer la vérification.';
+          break;
+        case 'credential-already-in-use':
+          errorMessage =
+              'Ce numéro de téléphone est déjà utilisé par un autre compte.';
+          break;
+        case 'requires-recent-login':
+          errorMessage =
+              'Veuillez vous reconnecter pour effectuer cette action.';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard.';
+          break;
+        case 'quota-exceeded':
+          errorMessage = 'Quota SMS dépassé. Réessayez plus tard.';
+          break;
+        default:
+          errorMessage =
+              'Erreur lors de la vérification: ${e.message ?? 'Erreur inconnue'}';
+      }
+
+      emit(state.error(message: errorMessage, code: e.code));
     } catch (e) {
       _logger.error('BLoC: Erreur de connexion par téléphone: $e', e);
       emit(state.error(message: 'Une erreur inattendue s\'est produite'));
@@ -447,33 +538,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       _logger.error('BLoC: Erreur de réinitialisation: $e', e);
       emit(state.error(message: 'Une erreur inattendue s\'est produite'));
-    }
-  }
-
-  /// Mise à jour du profil utilisateur
-  Future<void> _onUpdateUserProfileRequested(
-    AuthUpdateUserProfileRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    if (state.user == null) return;
-
-    emit(state.loading());
-
-    try {
-      _logger.info('BLoC: Mise à jour du profil utilisateur');
-
-      await _authRepository.updateUserProfile(
-        displayName: event.displayName,
-        photoURL: event.photoURL,
-      );
-
-      _logger.info('BLoC: Profil utilisateur mis à jour');
-
-      // Déclencher une synchronisation pour mettre à jour Firestore
-      add(const AuthSyncUserData());
-    } catch (e) {
-      _logger.error('BLoC: Erreur de mise à jour du profil: $e', e);
-      emit(state.error(message: 'Erreur lors de la mise à jour du profil'));
     }
   }
 
@@ -689,6 +753,468 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return 'Quota de SMS dépassé. Réessayez plus tard.';
       default:
         return 'Une erreur s\'est produite. Veuillez réessayer.';
+    }
+  }
+
+  Future<void> _onUpdateUserProfileRequestedWithImage(
+    AuthUpdateUserProfileRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null) return;
+
+    // ✅ Émettre un état de chargement spécifique qui maintient l'utilisateur connecté
+    emit(state.copyWith(isLoading: true));
+
+    try {
+      _logger.info('BLoC: Mise à jour du profil utilisateur avec image');
+
+      await _authRepository.updateUserProfile(
+        displayName: event.displayName,
+        photoURL: event.photoURL,
+        imageFile: event.imageFile,
+      );
+
+      _logger.info('BLoC: Profil utilisateur mis à jour');
+
+      // ✅ Recharger l'utilisateur Firebase pour obtenir les dernières données
+      await FirebaseAuth.instance.currentUser?.reload();
+      final updatedUser = _authRepository.currentUser;
+
+      if (updatedUser != null) {
+        // Mettre à jour Firestore avec les nouvelles données
+        final updates = <String, dynamic>{};
+        if (event.displayName != null) {
+          updates['fullName'] = event.displayName;
+        }
+
+        // Si on a uploadé une nouvelle image, mettre à jour l'URL
+        if (event.imageFile != null && updatedUser.photoURL != null) {
+          updates['photoURL'] = updatedUser.photoURL;
+        }
+
+        if (updates.isNotEmpty) {
+          await _authRepository.updateFirestoreUser(state.user!.uid, updates);
+        }
+
+        // ✅ Récupérer les données Firestore mises à jour
+        final updatedFirestoreUser = await _authRepository.getFirestoreUser(
+          state.user!.uid,
+        );
+
+        // ✅ Émettre l'état mis à jour sans passer par AuthUserChanged
+        emit(state.authenticated(updatedUser, updatedFirestoreUser));
+      }
+    } catch (e) {
+      _logger.error('BLoC: Erreur de mise à jour du profil: $e', e);
+      emit(
+        state.copyWith(
+          isLoading: false,
+          status: AuthStatus.error,
+          errorMessage: 'Erreur lors de la mise à jour du profil',
+        ),
+      );
+    }
+  }
+
+  /// Gestionnaire pour la mise à niveau d'un compte anonyme
+  Future<void> _onUpgradeAnonymousAccountRequested(
+    AuthUpgradeAnonymousAccountRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null || !state.user!.isAnonymous) {
+      emit(state.error(message: 'Aucun compte anonyme à mettre à niveau'));
+      return;
+    }
+
+    // ✅ FIX: Utiliser un état spécifique pour l'upgrade (pas loading générique)
+    emit(
+      state.copyWith(
+        isLoading: true,
+        status: AuthStatus.loading, // Garder le statut spécifique
+        errorMessage: null,
+        errorCode: null,
+      ),
+    );
+
+    try {
+      _logger.info('BLoC: Mise à niveau du compte anonyme vers compte email');
+
+      // Créer les credentials email/mot de passe
+      final AuthCredential credential = EmailAuthProvider.credential(
+        email: event.email,
+        password: event.password,
+      );
+
+      // Lier le compte anonyme avec les nouveaux credentials
+      final UserCredential userCredential = await FirebaseAuth
+          .instance
+          .currentUser!
+          .linkWithCredential(credential);
+
+      // Mettre à jour le nom d'affichage si fourni
+      if (event.displayName != null) {
+        await userCredential.user!.updateDisplayName(event.displayName);
+        await userCredential.user!.reload();
+      }
+
+      // Envoyer l'email de vérification
+      await userCredential.user!.sendEmailVerification();
+
+      // Mettre à jour les données Firestore
+      final updates = <String, dynamic>{
+        'email': event.email,
+        'isAnonymous': false,
+        'authProvider': 'email',
+        'emailVerified': false, // Sera mis à jour après vérification
+        'updatedAt': DateTime.now(),
+      };
+
+      if (event.displayName != null) {
+        updates['fullName'] = event.displayName;
+      }
+
+      await _authRepository.updateFirestoreUser(state.user!.uid, updates);
+
+      _logger.info('BLoC: Compte anonyme mis à niveau avec succès');
+
+      // ✅ FIX: Forcer le reload de l'utilisateur et émettre l'état correct
+      await FirebaseAuth.instance.currentUser?.reload();
+      final updatedUser = _authRepository.currentUser;
+
+      if (updatedUser != null) {
+        // Récupérer les données Firestore mises à jour
+        final updatedFirestoreUser = await _authRepository.getFirestoreUser(
+          updatedUser.uid,
+        );
+
+        // ✅ Émettre directement l'état authentifié sans passer par AuthUserChanged
+        if (updatedUser.email != null && !updatedUser.emailVerified) {
+          emit(state.emailNotVerified(updatedUser, updatedFirestoreUser));
+        } else {
+          emit(state.authenticated(updatedUser, updatedFirestoreUser));
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      _logger.error(
+        'BLoC: Erreur Firebase lors de la mise à niveau: ${e.code}',
+        e,
+      );
+
+      String errorMessage;
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMessage =
+              'Cette adresse email est déjà utilisée par un autre compte';
+          break;
+        case 'weak-password':
+          errorMessage = 'Le mot de passe est trop faible';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Adresse email invalide';
+          break;
+        case 'requires-recent-login':
+          errorMessage =
+              'Veuillez vous reconnecter pour effectuer cette action';
+          break;
+        case 'credential-already-in-use':
+          errorMessage =
+              'Ces identifiants sont déjà utilisés par un autre compte';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Cette opération n\'est pas autorisée';
+          break;
+        default:
+          errorMessage =
+              'Erreur lors de la mise à niveau du compte: ${e.message ?? 'Erreur inconnue'}';
+      }
+
+      emit(state.error(message: errorMessage, code: e.code));
+    } catch (e) {
+      _logger.error('BLoC: Erreur lors de la mise à niveau du compte: $e', e);
+      emit(
+        state.error(
+          message:
+              'Une erreur inattendue s\'est produite lors de la mise à niveau',
+        ),
+      );
+    }
+  }
+
+  /// Gestionnaire pour démarrer la liaison d'un numéro de téléphone
+  Future<void> _onStartPhoneLinkingRequested(
+    AuthStartPhoneLinkingRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null) {
+      emit(state.error(message: 'Aucun utilisateur connecté'));
+      return;
+    }
+
+    // ✅ FIX: État spécifique pour la vérification téléphone
+    emit(state.phoneVerificationInProgress());
+
+    try {
+      _logger.info('BLoC: Démarrage de la liaison de numéro de téléphone');
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: event.phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          _logger.info(
+            'BLoC: Vérification automatique du téléphone réussie pour liaison',
+          );
+          // ✅ Lier automatiquement si la vérification est complète
+          try {
+            final UserCredential userCredential = await FirebaseAuth
+                .instance
+                .currentUser!
+                .linkWithCredential(credential);
+
+            // Mettre à jour Firestore
+            final updates = <String, dynamic>{
+              'phoneNumber': userCredential.user?.phoneNumber,
+              'phoneVerified': true,
+              'isAnonymous': false, // ✅ Plus anonyme après liaison téléphone
+              'authProvider': 'phone',
+              'updatedAt': DateTime.now(),
+            };
+
+            await _authRepository.updateFirestoreUser(state.user!.uid, updates);
+
+            _logger.info('BLoC: Numéro de téléphone lié automatiquement');
+
+            // ✅ Forcer la mise à jour de l'état
+            await FirebaseAuth.instance.currentUser?.reload();
+            final updatedUser = _authRepository.currentUser;
+            final updatedFirestoreUser = await _authRepository.getFirestoreUser(
+              state.user!.uid,
+            );
+
+            if (updatedUser != null) {
+              emit(state.authenticated(updatedUser, updatedFirestoreUser));
+            }
+          } catch (e) {
+            _logger.error('BLoC: Erreur lors de la liaison automatique: $e', e);
+            emit(
+              state.error(
+                message: 'Erreur lors de la liaison automatique du téléphone',
+              ),
+            );
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          _logger.error(
+            'BLoC: Échec de la vérification du téléphone pour liaison: ${e.code}',
+            e,
+          );
+          add(
+            AuthPhoneVerificationFailed(
+              message: _getLocalizedFirebaseError(e.code),
+              code: e.code,
+            ),
+          );
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _logger.info('BLoC: Code SMS envoyé pour liaison de téléphone');
+          add(
+            AuthPhoneCodeSent(
+              verificationId: verificationId,
+              resendToken: resendToken,
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _logger.info(
+            'BLoC: Timeout de récupération automatique du code pour liaison',
+          );
+        },
+      );
+    } catch (e) {
+      _logger.error(
+        'BLoC: Erreur lors de la vérification du téléphone pour liaison: $e',
+        e,
+      );
+      emit(state.error(message: 'Une erreur inattendue s\'est produite'));
+    }
+  }
+
+  /// Gestionnaire pour lier un numéro de téléphone avec le code SMS
+  Future<void> _onLinkPhoneNumberRequested(
+    AuthLinkPhoneNumberRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null) {
+      emit(state.error(message: 'Aucun utilisateur connecté'));
+      return;
+    }
+
+    emit(state.copyWith(isLoading: true));
+
+    try {
+      _logger.info('BLoC: Tentative de liaison avec le code SMS');
+
+      final credential = PhoneAuthProvider.credential(
+        verificationId: event.verificationId,
+        smsCode: event.smsCode,
+      );
+
+      // Lier le numéro de téléphone au compte existant
+      final UserCredential userCredential = await FirebaseAuth
+          .instance
+          .currentUser!
+          .linkWithCredential(credential);
+
+      if (userCredential.user != null) {
+        _logger.info('BLoC: Numéro de téléphone lié avec succès');
+
+        // Mettre à jour les données Firestore
+        final updates = <String, dynamic>{
+          'phoneNumber': userCredential.user!.phoneNumber,
+          'phoneVerified': true,
+          'isAnonymous': false, // ✅ Plus anonyme après liaison
+          'authProvider': state.user!.isAnonymous ? 'phone' : 'multiple',
+          'updatedAt': DateTime.now(),
+        };
+
+        await _authRepository.updateFirestoreUser(state.user!.uid, updates);
+
+        // ✅ Recharger et émettre l'état mis à jour
+        await FirebaseAuth.instance.currentUser?.reload();
+        final updatedUser = _authRepository.currentUser;
+        final updatedFirestoreUser = await _authRepository.getFirestoreUser(
+          state.user!.uid,
+        );
+
+        if (updatedUser != null) {
+          emit(state.authenticated(updatedUser, updatedFirestoreUser));
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      _logger.error(
+        'BLoC: Erreur Firebase lors de la liaison par téléphone: ${e.code}',
+        e,
+      );
+
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMessage = 'Code de vérification invalide';
+          break;
+        case 'invalid-verification-id':
+          errorMessage = 'ID de vérification invalide';
+          break;
+        case 'credential-already-in-use':
+          errorMessage =
+              'Ce numéro de téléphone est déjà utilisé par un autre compte';
+          break;
+        case 'provider-already-linked':
+          errorMessage = 'Un numéro de téléphone est déjà lié à ce compte';
+          break;
+        case 'requires-recent-login':
+          errorMessage =
+              'Veuillez vous reconnecter pour effectuer cette action';
+          break;
+        default:
+          errorMessage =
+              'Erreur lors de la liaison du numéro de téléphone: ${e.message ?? 'Erreur inconnue'}';
+      }
+
+      emit(state.error(message: errorMessage, code: e.code));
+    } catch (e) {
+      _logger.error('BLoC: Erreur lors de la liaison par téléphone: $e', e);
+      emit(state.error(message: 'Une erreur inattendue s\'est produite'));
+    }
+  }
+
+  Future<void> _onUpgradeAnonymousToPhoneRequested(
+    AuthUpgradeAnonymousToPhoneRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.user == null || !state.user!.isAnonymous) {
+      emit(state.error(message: 'Aucun compte anonyme à mettre à niveau'));
+      return;
+    }
+
+    emit(state.copyWith(isLoading: true));
+
+    try {
+      _logger.info('BLoC: Mise à niveau du compte anonyme vers téléphone');
+
+      final credential = PhoneAuthProvider.credential(
+        verificationId: event.verificationId,
+        smsCode: event.smsCode,
+      );
+
+      // Lier le credential au compte anonyme
+      final UserCredential userCredential = await FirebaseAuth
+          .instance
+          .currentUser!
+          .linkWithCredential(credential);
+
+      // Mettre à jour le nom d'affichage si fourni
+      if (event.displayName != null && event.displayName!.isNotEmpty) {
+        await userCredential.user!.updateDisplayName(event.displayName);
+        await userCredential.user!.reload();
+      }
+
+      // Mettre à jour les données Firestore
+      final updates = <String, dynamic>{
+        'phoneNumber': userCredential.user!.phoneNumber,
+        'phoneVerified': true,
+        'isAnonymous': false,
+        'authProvider': 'phone',
+        'updatedAt': DateTime.now(),
+      };
+
+      if (event.displayName != null && event.displayName!.isNotEmpty) {
+        updates['fullName'] = event.displayName;
+      }
+
+      await _authRepository.updateFirestoreUser(state.user!.uid, updates);
+
+      _logger.info(
+        'BLoC: Compte anonyme mis à niveau vers téléphone avec succès',
+      );
+
+      // Recharger l'utilisateur et récupérer les données mises à jour
+      await FirebaseAuth.instance.currentUser?.reload();
+      final updatedUser = _authRepository.currentUser;
+      final updatedFirestoreUser = await _authRepository.getFirestoreUser(
+        state.user!.uid,
+      );
+
+      if (updatedUser != null) {
+        emit(state.authenticated(updatedUser, updatedFirestoreUser));
+      }
+    } on FirebaseAuthException catch (e) {
+      _logger.error(
+        'BLoC: Erreur Firebase lors de la mise à niveau téléphone: ${e.code}',
+        e,
+      );
+
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMessage = 'Code de vérification invalide';
+          break;
+        case 'invalid-verification-id':
+          errorMessage = 'Session expirée. Recommencez la vérification.';
+          break;
+        case 'credential-already-in-use':
+          errorMessage = 'Ce numéro est déjà utilisé par un autre compte';
+          break;
+        case 'requires-recent-login':
+          errorMessage =
+              'Veuillez vous reconnecter pour effectuer cette action';
+          break;
+        default:
+          errorMessage =
+              'Erreur lors de la mise à niveau: ${e.message ?? 'Erreur inconnue'}';
+      }
+
+      emit(state.error(message: errorMessage, code: e.code));
+    } catch (e) {
+      _logger.error('BLoC: Erreur lors de la mise à niveau téléphone: $e', e);
+      emit(state.error(message: 'Une erreur inattendue s\'est produite'));
     }
   }
 

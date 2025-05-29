@@ -157,21 +157,6 @@ class AuthPasswordResetRequested extends AuthEvent {
   String toString() => 'AuthPasswordResetRequested { email: $email }';
 }
 
-/// Événement pour mettre à jour le profil utilisateur
-class AuthUpdateUserProfileRequested extends AuthEvent {
-  final String? displayName;
-  final String? photoURL;
-
-  const AuthUpdateUserProfileRequested({this.displayName, this.photoURL});
-
-  @override
-  List<Object?> get props => [displayName, photoURL];
-
-  @override
-  String toString() =>
-      'AuthUpdateUserProfileRequested { displayName: $displayName, photoURL: $photoURL }';
-}
-
 /// Événement pour mettre à jour le mot de passe
 class AuthUpdatePasswordRequested extends AuthEvent {
   final String newPassword;
@@ -329,4 +314,97 @@ class AuthUpdateAppInfo extends AuthEvent {
 
   @override
   String toString() => 'AuthUpdateAppInfo';
+}
+
+// Mise à jour des événements dans auth_event.dart
+
+/// Événement pour mettre à jour le profil utilisateur avec support d'image
+class AuthUpdateUserProfileRequested extends AuthEvent {
+  final String? displayName;
+  final String? photoURL;
+  final File? imageFile; // Nouveau: support pour upload d'image
+
+  const AuthUpdateUserProfileRequested({
+    this.displayName,
+    this.photoURL,
+    this.imageFile,
+  });
+
+  @override
+  List<Object?> get props => [displayName, photoURL, imageFile];
+
+  @override
+  String toString() =>
+      'AuthUpdateUserProfileRequested { displayName: $displayName, photoURL: $photoURL, hasImageFile: ${imageFile != null} }';
+}
+
+/// Événement pour convertir un compte anonyme en compte permanent
+class AuthUpgradeAnonymousAccountRequested extends AuthEvent {
+  final String email;
+  final String password;
+  final String? displayName;
+
+  const AuthUpgradeAnonymousAccountRequested({
+    required this.email,
+    required this.password,
+    this.displayName,
+  });
+
+  @override
+  List<Object?> get props => [email, password, displayName];
+
+  @override
+  String toString() =>
+      'AuthUpgradeAnonymousAccountRequested { email: $email, displayName: $displayName }';
+}
+
+/// Événement pour lier un numéro de téléphone à un compte existant
+class AuthLinkPhoneNumberRequested extends AuthEvent {
+  final String verificationId;
+  final String smsCode;
+
+  const AuthLinkPhoneNumberRequested({
+    required this.verificationId,
+    required this.smsCode,
+  });
+
+  @override
+  List<Object> get props => [verificationId, smsCode];
+
+  @override
+  String toString() =>
+      'AuthLinkPhoneNumberRequested { verificationId: $verificationId }';
+}
+
+/// Événement pour démarrer la vérification de téléphone pour liaison
+class AuthStartPhoneLinkingRequested extends AuthEvent {
+  final String phoneNumber;
+
+  const AuthStartPhoneLinkingRequested({required this.phoneNumber});
+
+  @override
+  List<Object> get props => [phoneNumber];
+
+  @override
+  String toString() =>
+      'AuthStartPhoneLinkingRequested { phoneNumber: $phoneNumber }';
+}
+
+class AuthUpgradeAnonymousToPhoneRequested extends AuthEvent {
+  final String verificationId;
+  final String smsCode;
+  final String? displayName;
+
+  const AuthUpgradeAnonymousToPhoneRequested({
+    required this.verificationId,
+    required this.smsCode,
+    this.displayName,
+  });
+
+  @override
+  List<Object?> get props => [verificationId, smsCode, displayName];
+
+  @override
+  String toString() =>
+      'AuthUpgradeAnonymousToPhoneRequested { verificationId: $verificationId, displayName: $displayName }';
 }

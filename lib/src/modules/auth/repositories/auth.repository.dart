@@ -1,7 +1,11 @@
+// Mise à jour du fichier auth.repository.dart avec support d'upload d'images
+
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kartia/src/core/services/auth.service.dart';
 import 'package:kartia/src/core/services/log.service.dart';
 import 'package:kartia/src/core/services/firestore_user.service.dart';
+import 'package:kartia/src/core/services/image_upload.service.dart';
 import 'package:kartia/src/modules/auth/models/user.model.dart';
 
 /// Interface pour le repository d'authentification
@@ -38,7 +42,11 @@ abstract class AuthRepositoryInterface {
   });
 
   Future<void> sendPasswordResetEmail({required String email});
-  Future<void> updateUserProfile({String? displayName, String? photoURL});
+  Future<void> updateUserProfile({
+    String? displayName,
+    String? photoURL,
+    File? imageFile,
+  });
   Future<void> updatePassword({required String newPassword});
   Future<void> sendEmailVerification();
   Future<void> signOut();
@@ -49,18 +57,21 @@ abstract class AuthRepositoryInterface {
   Future<void> updateUserLocation(String userId, UserLocation location);
 }
 
-/// Repository concret pour l'authentification avec intégration Firestore
+/// Repository concret pour l'authentification avec upload d'images
 class AuthRepository implements AuthRepositoryInterface {
   final AuthService _authService;
   final FirestoreUserService _firestoreUserService;
+  final ImageUploadService _imageUploadService;
   final LogService _logger;
 
   AuthRepository({
     required AuthService authService,
     required FirestoreUserService firestoreUserService,
+    required ImageUploadService imageUploadService,
     required LogService logger,
   }) : _authService = authService,
        _firestoreUserService = firestoreUserService,
+       _imageUploadService = imageUploadService,
        _logger = logger;
 
   @override
@@ -69,7 +80,6 @@ class AuthRepository implements AuthRepositoryInterface {
       final userModel = _authService.firebaseUserToUserModel(user);
       if (userModel != null) {
         _logger.info('État d\'authentification changé: ${userModel.uid}');
-        // Mettre à jour la dernière connexion dans Firestore
         _firestoreUserService.updateLastSignIn(userModel.uid);
       } else {
         _logger.info('Utilisateur déconnecté');
@@ -104,7 +114,6 @@ class AuthRepository implements AuthRepositoryInterface {
       if (userModel != null) {
         _logger.info('Repository: Connexion réussie pour ${userModel.uid}');
 
-        // Vérifier si l'utilisateur existe dans Firestore
         final firestoreUser = await _firestoreUserService.getUser(
           userModel.uid,
         );
@@ -112,7 +121,6 @@ class AuthRepository implements AuthRepositoryInterface {
           _logger.info('Utilisateur non trouvé dans Firestore, création...');
           await _createFirestoreUserFromAuth(userModel);
         } else {
-          // Mettre à jour la dernière connexion
           await _firestoreUserService.updateLastSignIn(userModel.uid);
         }
       }
@@ -144,13 +152,11 @@ class AuthRepository implements AuthRepositoryInterface {
       if (userModel != null) {
         _logger.info('Repository: Inscription réussie pour ${userModel.uid}');
 
-        // Créer l'utilisateur dans Firestore
         await _createFirestoreUserFromAuth(
           userModel,
           fullName: displayName ?? email.split('@')[0],
         );
 
-        // Envoyer l'email de vérification automatiquement
         await sendEmailVerification();
       }
 
@@ -174,7 +180,6 @@ class AuthRepository implements AuthRepositoryInterface {
           'Repository: Connexion anonyme réussie pour ${userModel.uid}',
         );
 
-        // Créer l'utilisateur anonyme dans Firestore
         await _createFirestoreUserFromAuth(
           userModel,
           fullName: 'Utilisateur Anonyme',
@@ -234,7 +239,6 @@ class AuthRepository implements AuthRepositoryInterface {
           'Repository: Connexion par téléphone réussie pour ${userModel.uid}',
         );
 
-        // Vérifier si l'utilisateur existe dans Firestore
         final firestoreUser = await _firestoreUserService.getUser(
           userModel.uid,
         );
@@ -247,7 +251,6 @@ class AuthRepository implements AuthRepositoryInterface {
             fullName: userModel.phoneNumber ?? 'Utilisateur Téléphone',
           );
         } else {
-          // Mettre à jour la dernière connexion
           await _firestoreUserService.updateLastSignIn(userModel.uid);
         }
       }
@@ -263,9 +266,7 @@ class AuthRepository implements AuthRepositoryInterface {
   Future<void> sendPasswordResetEmail({required String email}) async {
     try {
       _logger.info('Repository: Envoi d\'email de réinitialisation');
-
       await _authService.sendPasswordResetEmail(email: email);
-
       _logger.info('Repository: Email de réinitialisation envoyé avec succès');
     } catch (e) {
       _logger.error(
@@ -280,28 +281,80 @@ class AuthRepository implements AuthRepositoryInterface {
   Future<void> updateUserProfile({
     String? displayName,
     String? photoURL,
+    File? imageFile,
   }) async {
     try {
-      _logger.info('Repository: Mise à jour du profil utilisateur');
+      final user = currentUser;
+      if (user == null) {
+        throw Exception('Aucun utilisateur connecté');
+      }
 
+      _logger.info(
+        'Repository: Mise à jour du profil utilisateur: ${user.uid}',
+      );
+
+      String? finalPhotoURL = photoURL;
+
+      // Upload de l'image si fournie
+      if (imageFile != null) {
+        _logger.info('Upload de nouvelle image de profil...');
+
+        // Valider l'image
+        if (!_imageUploadService.isValidImageFile(imageFile)) {
+          throw Exception('Format d\'image non supporté');
+        }
+
+        if (!_imageUploadService.isValidFileSize(imageFile, maxSizeMB: 5.0)) {
+          throw Exception('L\'image est trop volumineuse (max 5MB)');
+        }
+
+        // Supprimer l'ancienne image si elle existe
+        if (user.photoURL != null && user.photoURL!.isNotEmpty) {
+          try {
+            await _imageUploadService.deleteProfileImage(user.photoURL!);
+          } catch (e) {
+            _logger.warning('Impossible de supprimer l\'ancienne image: $e');
+          }
+        }
+
+        // Upload de la nouvelle image
+        finalPhotoURL = await _imageUploadService.uploadProfileImage(
+          userId: user.uid,
+          imageFile: imageFile,
+        );
+
+        if (finalPhotoURL == null) {
+          throw Exception('Échec de l\'upload de l\'image');
+        }
+
+        _logger.info('Image de profil uploadée avec succès: $finalPhotoURL');
+      }
+
+      // Mettre à jour le profil Firebase Auth
       await _authService.updateUserProfile(
         displayName: displayName,
-        photoURL: photoURL,
+        photoURL: finalPhotoURL,
       );
 
       // Mettre à jour aussi dans Firestore
-      final currentUser = _authService.currentUser;
-      if (currentUser != null) {
-        final updates = <String, dynamic>{};
-        if (displayName != null) {
-          updates['fullName'] = displayName;
-        }
-        if (photoURL != null) {
-          updates['photoURL'] = photoURL;
-        }
+      final updates = <String, dynamic>{};
+      if (displayName != null) {
+        updates['fullName'] = displayName;
+      }
+      if (finalPhotoURL != null) {
+        updates['photoURL'] = finalPhotoURL;
+      }
 
-        if (updates.isNotEmpty) {
-          await _firestoreUserService.updateUser(currentUser.uid, updates);
+      if (updates.isNotEmpty) {
+        await _firestoreUserService.updateUser(user.uid, updates);
+      }
+
+      // Nettoyer les anciennes images de profil
+      if (imageFile != null) {
+        try {
+          await _imageUploadService.cleanupOldProfileImages(user.uid);
+        } catch (e) {
+          _logger.warning('Erreur lors du nettoyage des anciennes images: $e');
         }
       }
 
@@ -316,9 +369,7 @@ class AuthRepository implements AuthRepositoryInterface {
   Future<void> updatePassword({required String newPassword}) async {
     try {
       _logger.info('Repository: Mise à jour du mot de passe');
-
       await _authService.updatePassword(newPassword: newPassword);
-
       _logger.info('Repository: Mot de passe mis à jour avec succès');
     } catch (e) {
       _logger.error('Repository: Erreur de mise à jour du mot de passe', e);
@@ -330,9 +381,7 @@ class AuthRepository implements AuthRepositoryInterface {
   Future<void> sendEmailVerification() async {
     try {
       _logger.info('Repository: Envoi d\'email de vérification');
-
       await _authService.sendEmailVerification();
-
       _logger.info('Repository: Email de vérification envoyé avec succès');
     } catch (e) {
       _logger.error('Repository: Erreur d\'envoi d\'email de vérification', e);
@@ -344,9 +393,7 @@ class AuthRepository implements AuthRepositoryInterface {
   Future<void> signOut() async {
     try {
       _logger.info('Repository: Déconnexion de l\'utilisateur');
-
       await _authService.signOut();
-
       _logger.info('Repository: Déconnexion réussie');
     } catch (e) {
       _logger.error('Repository: Erreur de déconnexion', e);
@@ -361,10 +408,46 @@ class AuthRepository implements AuthRepositoryInterface {
       if (currentUser != null) {
         _logger.info('Repository: Suppression du compte utilisateur');
 
-        // Supprimer d'abord de Firestore
+        // Récupérer l'utilisateur Firestore pour obtenir les images
+        final firestoreUser = await _firestoreUserService.getUser(
+          currentUser.uid,
+        );
+
+        // Supprimer les images de profil
+        if (firestoreUser?.photoURL != null) {
+          try {
+            await _imageUploadService.deleteProfileImage(
+              firestoreUser!.photoURL!,
+            );
+          } catch (e) {
+            _logger.warning(
+              'Erreur lors de la suppression de l\'image de profil: $e',
+            );
+          }
+        }
+
+        // Supprimer toutes les images de l'utilisateur
+        try {
+          final userImages = await _imageUploadService.listUserImages(
+            currentUser.uid,
+          );
+          for (String imageUrl in userImages) {
+            try {
+              await _imageUploadService.deleteProfileImage(imageUrl);
+            } catch (e) {
+              _logger.warning('Erreur lors de la suppression d\'une image: $e');
+            }
+          }
+        } catch (e) {
+          _logger.warning(
+            'Erreur lors de la suppression des images utilisateur: $e',
+          );
+        }
+
+        // Supprimer de Firestore
         await _firestoreUserService.deleteUser(currentUser.uid);
 
-        // Puis supprimer de Firebase Auth
+        // Supprimer de Firebase Auth
         await _authService.deleteAccount();
 
         _logger.info('Repository: Compte supprimé avec succès');
@@ -374,8 +457,6 @@ class AuthRepository implements AuthRepositoryInterface {
       rethrow;
     }
   }
-
-  // ✅ NOUVELLES MÉTHODES FIRESTORE
 
   @override
   Future<FirestoreUserModel?> getFirestoreUser(String userId) async {

@@ -4,14 +4,17 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i5;
+import 'dart:io' as _i9;
 
 import 'package:firebase_auth/firebase_auth.dart' as _i3;
+import 'package:firebase_storage/firebase_storage.dart' as _i10;
 import 'package:kartia/src/core/services/auth.service.dart' as _i4;
 import 'package:kartia/src/core/services/firestore_user.service.dart' as _i7;
+import 'package:kartia/src/core/services/image_upload.service.dart' as _i8;
 import 'package:kartia/src/core/services/log.service.dart' as _i6;
 import 'package:kartia/src/modules/auth/models/user.model.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i8;
+import 'package:mockito/src/dummies.dart' as _i11;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -397,6 +400,107 @@ class MockFirestoreUserService extends _i1.Mock
           as _i5.Future<void>);
 }
 
+/// A class which mocks [ImageUploadService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockImageUploadService extends _i1.Mock
+    implements _i8.ImageUploadService {
+  MockImageUploadService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<String?> uploadProfileImage({
+    required String? userId,
+    required _i9.File? imageFile,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#uploadProfileImage, [], {
+              #userId: userId,
+              #imageFile: imageFile,
+            }),
+            returnValue: _i5.Future<String?>.value(),
+          )
+          as _i5.Future<String?>);
+
+  @override
+  _i5.Future<void> deleteProfileImage(String? imageUrl) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteProfileImage, [imageUrl]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<String?> uploadImage({
+    required String? path,
+    required _i9.File? imageFile,
+    Map<String, String>? customMetadata,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#uploadImage, [], {
+              #path: path,
+              #imageFile: imageFile,
+              #customMetadata: customMetadata,
+            }),
+            returnValue: _i5.Future<String?>.value(),
+          )
+          as _i5.Future<String?>);
+
+  @override
+  bool isValidImageFile(_i9.File? file) =>
+      (super.noSuchMethod(
+            Invocation.method(#isValidImageFile, [file]),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
+  bool isValidFileSize(_i9.File? file, {double? maxSizeMB = 5.0}) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #isValidFileSize,
+              [file],
+              {#maxSizeMB: maxSizeMB},
+            ),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
+  _i5.Future<_i10.FullMetadata?> getFileMetadata(String? downloadUrl) =>
+      (super.noSuchMethod(
+            Invocation.method(#getFileMetadata, [downloadUrl]),
+            returnValue: _i5.Future<_i10.FullMetadata?>.value(),
+          )
+          as _i5.Future<_i10.FullMetadata?>);
+
+  @override
+  _i5.Future<List<String>> listUserImages(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#listUserImages, [userId]),
+            returnValue: _i5.Future<List<String>>.value(<String>[]),
+          )
+          as _i5.Future<List<String>>);
+
+  @override
+  _i5.Future<void> cleanupOldProfileImages(
+    String? userId, {
+    int? keepCount = 3,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #cleanupOldProfileImages,
+              [userId],
+              {#keepCount: keepCount},
+            ),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+}
+
 /// A class which mocks [UserCredential].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -447,7 +551,7 @@ class MockUser extends _i1.Mock implements _i3.User {
   String get uid =>
       (super.noSuchMethod(
             Invocation.getter(#uid),
-            returnValue: _i8.dummyValue<String>(this, Invocation.getter(#uid)),
+            returnValue: _i11.dummyValue<String>(this, Invocation.getter(#uid)),
           )
           as String);
 

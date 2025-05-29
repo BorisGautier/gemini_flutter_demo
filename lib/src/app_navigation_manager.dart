@@ -26,20 +26,28 @@ class AppNavigationManager extends StatelessWidget {
         // Une fois le GPS accordé, gérer l'authentification
         return BlocBuilder<AuthBloc, AuthState>(
           builder: (context, authState) {
-            // ✅ AMÉLIORATION : Debug pour voir l'état actuel
             debugPrint(
-              'AppNavigationManager - AuthState: ${authState.status}, User: ${authState.user?.uid}, IsLoading: ${authState.isLoading}',
+              'AppNavigationManager - AuthState: ${authState.status}, User: ${authState.user?.uid}, IsAnonymous: ${authState.user?.isAnonymous}, IsLoading: ${authState.isLoading}',
             );
 
             // État initial - afficher l'écran de splash
             if (authState.status == AuthStatus.unknown) {
               return const SplashScreen();
             }
-            if (authState.isLoading) {
-              // Si on a un utilisateur et qu'on est en chargement,
+
+            if (authState.isLoading &&
+                authState.status != AuthStatus.updatingProfile &&
+                authState.status != AuthStatus.phoneVerificationInProgress &&
+                authState.status != AuthStatus.phoneCodeSent) {
+              // Si on a un utilisateur et qu'on est en chargement (pas de mise à jour profil),
               // afficher l'écran approprié sans indicateur supplémentaire
               if (authState.user != null) {
                 final user = authState.user!;
+
+                if (user.isAnonymous) {
+                  return const HomeScreen();
+                }
+
                 if (!user.emailVerified &&
                     !user.isAnonymous &&
                     user.phoneNumber == null) {
@@ -53,12 +61,37 @@ class AppNavigationManager extends StatelessWidget {
               }
             }
 
+            // ✅ NOUVEAU: Gestion spéciale pour les états de vérification téléphone
+            if (authState.status == AuthStatus.phoneVerificationInProgress ||
+                authState.status == AuthStatus.phoneCodeSent) {
+              // Rester sur l'écran actuel pendant la vérification téléphone
+              if (authState.user != null) {
+                return const HomeScreen(); // ou l'écran où se déroule la vérification
+              }
+            }
+
+            // ✅ NOUVEAU: Pendant la mise à jour du profil, rester sur l'écran actuel
+            if (authState.status == AuthStatus.updatingProfile &&
+                authState.user != null) {
+              final user = authState.user!;
+
+              if (user.isAnonymous) {
+                return const HomeScreen();
+              } else if (!user.emailVerified &&
+                  !user.isAnonymous &&
+                  user.phoneNumber == null) {
+                return EmailVerificationScreen(user: user);
+              } else {
+                return const HomeScreen();
+              }
+            }
+
             // Email non vérifié
             if (authState.isEmailNotVerified && authState.user != null) {
               return EmailVerificationScreen(user: authState.user!);
             }
 
-            // Utilisateur authentifié
+            // ✅ Utilisateur authentifié (incluant les comptes anonymes)
             if (authState.isAuthenticated && authState.user != null) {
               return const HomeScreen();
             }
