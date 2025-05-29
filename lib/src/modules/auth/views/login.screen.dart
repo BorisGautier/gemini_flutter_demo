@@ -144,9 +144,9 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  void _handleAnonymousSignIn() {
+  /*void _handleAnonymousSignIn() {
     context.read<AuthBloc>().add(const AuthSignInAnonymouslyRequested());
-  }
+  }*/
 
   void _navigateToRegister() {
     context.pushNamed(AppRoutes.register);
@@ -522,7 +522,7 @@ class _LoginScreenState extends State<LoginScreen>
               SizedBox(height: heightSpace.height!),
 
               // Connexion anonyme avec style amélioré
-              Container(
+              /*  Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -543,7 +543,7 @@ class _LoginScreenState extends State<LoginScreen>
                   textColor: AppColors.secondary,
                   width: double.infinity,
                 ),
-              ),
+              ),*/
             ],
           ),
         );
