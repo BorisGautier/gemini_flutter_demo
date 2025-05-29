@@ -166,8 +166,9 @@ class _GpsScreenState extends State<GpsScreen> with TickerProviderStateMixin {
                           children: [
                             Text(
                               state.isGpsEnabled
-                                  ? 'GPS activé ! Nous avons maintenant besoin de votre permission pour accéder à votre localisation.'
-                                  : 'Pour utiliser cette application, vous devez d\'abord activer le GPS dans les paramètres de votre appareil.',
+                                  ? l10n
+                                      .gpsEnabledMessage // ✅ NOUVEAU
+                                  : l10n.gpsDisabledMessage, // ✅ NOUVEAU
                               style: TextStyle(
                                 color:
                                     state.isGpsEnabled
@@ -242,7 +243,7 @@ class _GpsScreenState extends State<GpsScreen> with TickerProviderStateMixin {
                               ),
                               SizedBox(width: 12),
                               Text(
-                                'Demande de permission en cours...',
+                                l10n.permissionRequestInProgress, // ✅ NOUVEAU
                                 style: TextStyle(
                                   color: AppColors.info,
                                   fontWeight: FontWeight.w500,
@@ -270,7 +271,7 @@ class _GpsScreenState extends State<GpsScreen> with TickerProviderStateMixin {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Cette autorisation est nécessaire pour le bon fonctionnement de l\'application.',
+                              l10n.locationPermissionRequired, // ✅ NOUVEAU
                               style: TextStyle(
                                 color: AppColors.darkGrey,
                                 fontSize: 12,

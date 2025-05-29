@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kartia/generated/l10n.dart';
 import 'package:kartia/src/core/utils/colors.util.dart';
 import 'package:kartia/src/core/utils/sizes.util.dart';
 import 'package:kartia/src/modules/auth/bloc/auth_bloc.dart';
@@ -121,10 +122,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   }
 
   void _resendVerificationEmail() {
+    final l10n = KartiaLocalizations.of(context);
+
     context.read<AuthBloc>().add(const AuthSendEmailVerificationRequested());
     KartiaSnackbar.show(
       context,
-      message: 'Email de vérification renvoyé',
+      message: l10n.emailVerificationSent, // ✅ UTILISER LA TRADUCTION
       type: SnackbarType.success,
     );
   }
@@ -143,6 +146,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = KartiaLocalizations.of(context);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -203,7 +208,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
                   // Titre
                   Text(
-                    'Vérifiez votre email',
+                    l10n.checkEmail, // ✅ UTILISER LA TRADUCTION
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -224,7 +229,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                     child: Column(
                       children: [
                         Text(
-                          'Un email de vérification a été envoyé à :',
+                          l10n.emailSentSuccess, // ✅ UTILISER LA TRADUCTION
                           style: TextStyle(
                             color: AppColors.darkGrey,
                             fontSize: 16,
@@ -243,7 +248,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         ),
                         SizedBox(height: 16),
                         Text(
-                          'Cliquez sur le lien dans l\'email pour vérifier votre compte.',
+                          l10n.clickLinkInEmail, // ✅ UTILISER LA TRADUCTION
                           style: TextStyle(
                             color: AppColors.darkGrey,
                             fontSize: 14,
@@ -279,7 +284,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                           ),
                           SizedBox(width: 12),
                           Text(
-                            'Vérification en cours...',
+                            l10n.verification, // ✅ UTILISER LA TRADUCTION
                             style: TextStyle(
                               color: AppColors.success,
                               fontWeight: FontWeight.w500,
@@ -293,7 +298,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
                   // Bouton renvoyer
                   KartiaButton(
-                    text: 'Renvoyer l\'email',
+                    text: l10n.resendEmail, // ✅ UTILISER LA TRADUCTION
                     onPressed: _resendVerificationEmail,
                     type: KartiaButtonType.outline,
                     borderColor: AppColors.info,
@@ -319,7 +324,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Après avoir cliqué sur le lien, cette page se mettra automatiquement à jour.',
+                          l10n.emailVerificationInstructions, // ✅ NOUVEAU
                           style: TextStyle(
                             color: AppColors.darkGrey,
                             fontSize: 12,
@@ -336,7 +341,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                   TextButton(
                     onPressed: _signOut,
                     child: Text(
-                      'Se déconnecter',
+                      l10n.signOut, // ✅ UTILISER LA TRADUCTION
                       style: TextStyle(color: AppColors.error, fontSize: 14),
                     ),
                   ),

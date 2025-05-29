@@ -22,10 +22,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m0(feature) => "${feature} - Bientôt disponible !";
 
-  static String m1(error) =>
+  static String m1(phoneNumber) =>
+      "Entrez le code de vérification envoyé au ${phoneNumber}";
+
+  static String m2(error) =>
       "Erreur lors de la sélection de l\'image: ${error}";
 
-  static String m2(seconds) => "Renvoyer le code dans ${seconds}s";
+  static String m3(timestamp) => "Dernière sync: ${timestamp}";
+
+  static String m4(seconds) => "Renvoyer le code dans ${seconds}s";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -37,9 +42,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "Déjà un compte ? ",
     ),
     "and": MessageLookupByLibrary.simpleMessage(" et la "),
+    "appVersion": MessageLookupByLibrary.simpleMessage("Version app"),
     "appearance": MessageLookupByLibrary.simpleMessage("Apparence"),
     "appname": MessageLookupByLibrary.simpleMessage("Kartia"),
     "askAccess": MessageLookupByLibrary.simpleMessage("Demandez l\'access"),
+    "authState": MessageLookupByLibrary.simpleMessage("État Auth"),
+    "automaticBackup": MessageLookupByLibrary.simpleMessage(
+      "Sauvegarde automatique",
+    ),
     "camera": MessageLookupByLibrary.simpleMessage("Appareil photo"),
     "cancel": MessageLookupByLibrary.simpleMessage("Annuler"),
     "cantFindEmail": MessageLookupByLibrary.simpleMessage(
@@ -49,6 +59,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "cartoPrixDesc": MessageLookupByLibrary.simpleMessage(
       "Comparateur de prix pour vos achats quotidiens",
     ),
+    "changeLanguage": MessageLookupByLibrary.simpleMessage("Changer la langue"),
     "changeNumber": MessageLookupByLibrary.simpleMessage("Modifier le numéro"),
     "changePassword": MessageLookupByLibrary.simpleMessage(
       "Changer votre mot de passe",
@@ -56,12 +67,20 @@ class MessageLookup extends MessageLookupByLibrary {
     "changePasswordDesc": MessageLookupByLibrary.simpleMessage(
       "Modifier votre mot de passe",
     ),
+    "changePasswordOption": MessageLookupByLibrary.simpleMessage(
+      "Modifier le mot de passe",
+    ),
+    "changePhoneNumber": MessageLookupByLibrary.simpleMessage(
+      "Changer de numéro",
+    ),
     "changePhoto": MessageLookupByLibrary.simpleMessage(
       "Touchez l\'icône pour changer votre photo",
     ),
+    "changeTheme": MessageLookupByLibrary.simpleMessage("Changer le thème"),
     "checkEmail": MessageLookupByLibrary.simpleMessage(
       "Vérifiez votre boîte mail",
     ),
+    "chooseMethod": MessageLookupByLibrary.simpleMessage("Choisir la méthode"),
     "choosePhoto": MessageLookupByLibrary.simpleMessage("Choisir une photo"),
     "cityAiGuide": MessageLookupByLibrary.simpleMessage("CityAI Guide"),
     "cityAiGuideDesc": MessageLookupByLibrary.simpleMessage(
@@ -94,8 +113,21 @@ class MessageLookup extends MessageLookupByLibrary {
     "copyright": MessageLookupByLibrary.simpleMessage(
       "© 2025 Kartia. Tous droits réservés.",
     ),
+    "country": MessageLookupByLibrary.simpleMessage("Pays"),
     "createAccount": MessageLookupByLibrary.simpleMessage("Créer un compte"),
+    "createEmailAccount": MessageLookupByLibrary.simpleMessage(
+      "Créer mon Compte Email",
+    ),
+    "createWithEmail": MessageLookupByLibrary.simpleMessage("Créer avec Email"),
+    "createWithPhone": MessageLookupByLibrary.simpleMessage(
+      "Créer avec Téléphone",
+    ),
     "dangerZone": MessageLookupByLibrary.simpleMessage("Zone de danger"),
+    "dataUpdated": MessageLookupByLibrary.simpleMessage("Données mises à jour"),
+    "dataWillBePreserved": MessageLookupByLibrary.simpleMessage(
+      "Vos données actuelles seront conservées lors de la migration.",
+    ),
+    "debugInfo": MessageLookupByLibrary.simpleMessage("Infos de Debug"),
     "deleteAccount": MessageLookupByLibrary.simpleMessage(
       "Supprimer le compte",
     ),
@@ -108,6 +140,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteAccountWarning": MessageLookupByLibrary.simpleMessage(
       "Cette action est irréversible. Toutes vos données seront définitivement supprimées.",
     ),
+    "developer": MessageLookupByLibrary.simpleMessage("Développeur"),
     "discardChanges": MessageLookupByLibrary.simpleMessage(
       "Annuler les modifications",
     ),
@@ -123,6 +156,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "editProfile": MessageLookupByLibrary.simpleMessage("Modifier le profil"),
     "email": MessageLookupByLibrary.simpleMessage("Adresse email"),
+    "emailAccountInfo": MessageLookupByLibrary.simpleMessage(
+      "Informations du Compte Email",
+    ),
     "emailHint": MessageLookupByLibrary.simpleMessage("exemple@email.com"),
     "emailInstructions": MessageLookupByLibrary.simpleMessage(
       "• Vérifiez votre dossier spam\n• Assurez-vous que l\'adresse email est correcte\n• L\'email peut prendre quelques minutes à arriver",
@@ -130,19 +166,31 @@ class MessageLookup extends MessageLookupByLibrary {
     "emailNotVerified": MessageLookupByLibrary.simpleMessage(
       "Email non vérifié",
     ),
+    "emailNotVerifiedDescription": MessageLookupByLibrary.simpleMessage(
+      "Votre adresse email n\'est pas encore vérifiée. Vérifiez votre email pour accéder à toutes les fonctionnalités.",
+    ),
     "emailSent": MessageLookupByLibrary.simpleMessage("Email envoyé !"),
     "emailSentSuccess": MessageLookupByLibrary.simpleMessage(
       "Nous avons envoyé un lien de récupération à",
+    ),
+    "emailVerificationInstructions": MessageLookupByLibrary.simpleMessage(
+      "Après avoir cliqué sur le lien, cette page se mettra automatiquement à jour.",
     ),
     "emailVerificationSent": MessageLookupByLibrary.simpleMessage(
       "Un email de vérification a été envoyé à votre adresse.",
     ),
     "emailVerified": MessageLookupByLibrary.simpleMessage("Email vérifié"),
+    "emailVerifiedDescription": MessageLookupByLibrary.simpleMessage(
+      "Votre adresse email a été vérifiée avec succès. Vous avez accès à toutes les fonctionnalités.",
+    ),
     "enableGps": MessageLookupByLibrary.simpleMessage(
       "Assurez-vous d\'activer le GPS.",
     ),
     "enableToChange": MessageLookupByLibrary.simpleMessage(
       "Activez l\'option pour changer votre mot de passe",
+    ),
+    "enhancedSecurity": MessageLookupByLibrary.simpleMessage(
+      "Sécurité renforcée",
     ),
     "enterCodeReceived": MessageLookupByLibrary.simpleMessage(
       "Entrez le code reçu par SMS",
@@ -150,7 +198,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "enterEmailForReset": MessageLookupByLibrary.simpleMessage(
       "Entrez votre email pour recevoir un lien de récupération",
     ),
-    "errorImageSelection": m1,
+    "enterSmsCodeMessage": m1,
+    "errorImageSelection": m2,
     "errorLoadingFailed": MessageLookupByLibrary.simpleMessage(
       "Erreur de chargement...",
     ),
@@ -161,6 +210,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "featureComingSoon": MessageLookupByLibrary.simpleMessage(
       "Cette fonctionnalité sera bientôt disponible.",
     ),
+    "firestoreData": MessageLookupByLibrary.simpleMessage("Firestore"),
     "forgotPassword": MessageLookupByLibrary.simpleMessage(
       "Mot de passe oublié ?",
     ),
@@ -170,20 +220,48 @@ class MessageLookup extends MessageLookupByLibrary {
     "gpsAccess": MessageLookupByLibrary.simpleMessage(
       "Un accès GPS est nécessaire",
     ),
+    "gpsDisabledMessage": MessageLookupByLibrary.simpleMessage(
+      "Pour utiliser cette application, vous devez d\'abord activer le GPS dans les paramètres de votre appareil.",
+    ),
+    "gpsEnabledMessage": MessageLookupByLibrary.simpleMessage(
+      "GPS activé ! Nous avons maintenant besoin de votre permission pour accéder à votre localisation.",
+    ),
     "guest": MessageLookupByLibrary.simpleMessage("Invité"),
     "guestAccount": MessageLookupByLibrary.simpleMessage("Compte invité"),
+    "guestAccountDescription": MessageLookupByLibrary.simpleMessage(
+      "Vous utilisez un compte invité. Créez un compte complet pour sauvegarder vos données et accéder à toutes les fonctionnalités.",
+    ),
     "hello": MessageLookupByLibrary.simpleMessage("Bonjour,"),
     "help": MessageLookupByLibrary.simpleMessage("Aide"),
     "helpDesc": MessageLookupByLibrary.simpleMessage("Support et FAQ"),
     "home": MessageLookupByLibrary.simpleMessage("Accueil"),
+    "imageSelectedMessage": MessageLookupByLibrary.simpleMessage(
+      "Image sélectionnée. N\'oubliez pas de sauvegarder.",
+    ),
     "joinUsNow": MessageLookupByLibrary.simpleMessage(
       "Rejoignez-nous dès maintenant",
     ),
     "language": MessageLookupByLibrary.simpleMessage("Langue"),
     "languageDesc": MessageLookupByLibrary.simpleMessage("Français / English"),
+    "lastSync": MessageLookupByLibrary.simpleMessage("Dernière sync"),
+    "lastSyncMessage": m3,
+    "later": MessageLookupByLibrary.simpleMessage("Plus tard"),
     "loading": MessageLookupByLibrary.simpleMessage("Chargement..."),
+    "locationActive": MessageLookupByLibrary.simpleMessage(
+      "Localisation active",
+    ),
+    "locationPermissionRequired": MessageLookupByLibrary.simpleMessage(
+      "Cette autorisation est nécessaire pour le bon fonctionnement de l\'application.",
+    ),
     "manageProfile": MessageLookupByLibrary.simpleMessage(
       "Gérer vos informations personnelles",
+    ),
+    "multiDeviceSync": MessageLookupByLibrary.simpleMessage(
+      "Synchronisation multi-appareils",
+    ),
+    "never": MessageLookupByLibrary.simpleMessage("jamais"),
+    "newImageSelected": MessageLookupByLibrary.simpleMessage(
+      "Nouvelle image sélectionnée. Cliquez sur \"Sauvegarder\" pour confirmer.",
     ),
     "newPassword": MessageLookupByLibrary.simpleMessage("Nouveau mot de passe"),
     "newPasswordHint": MessageLookupByLibrary.simpleMessage(
@@ -191,6 +269,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "noAccount": MessageLookupByLibrary.simpleMessage(
       "Pas encore de compte ? ",
+    ),
+    "noFirestoreData": MessageLookupByLibrary.simpleMessage(
+      "Aucune donnée Firestore",
     ),
     "noRecentActivity": MessageLookupByLibrary.simpleMessage(
       "Aucune activité récente",
@@ -201,26 +282,45 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "orContinueWith": MessageLookupByLibrary.simpleMessage("ou continuer avec"),
     "orSignUpWith": MessageLookupByLibrary.simpleMessage("ou s\'inscrire avec"),
+    "osVersion": MessageLookupByLibrary.simpleMessage("OS"),
     "ourServices": MessageLookupByLibrary.simpleMessage("Nos Services"),
     "password": MessageLookupByLibrary.simpleMessage("Mot de passe"),
     "passwordHint": MessageLookupByLibrary.simpleMessage(
       "Entrez votre mot de passe",
     ),
     "passwordSection": MessageLookupByLibrary.simpleMessage("Mot de passe"),
+    "permissionRequestInProgress": MessageLookupByLibrary.simpleMessage(
+      "Demande de permission en cours...",
+    ),
     "personalInformation": MessageLookupByLibrary.simpleMessage(
       "Informations personnelles",
     ),
+    "personalizedNotifications": MessageLookupByLibrary.simpleMessage(
+      "Notifications personnalisées",
+    ),
     "phone": MessageLookupByLibrary.simpleMessage("Téléphone"),
+    "phoneAccountInfo": MessageLookupByLibrary.simpleMessage(
+      "Informations du Compte Téléphone",
+    ),
     "phoneAuth": MessageLookupByLibrary.simpleMessage(
       "Authentification par téléphone",
     ),
     "phoneNumber": MessageLookupByLibrary.simpleMessage("Numéro de téléphone"),
+    "phoneNumberHintCameroon": MessageLookupByLibrary.simpleMessage(
+      "6XX XXX XXX (sans +237)",
+    ),
+    "phoneVerified": MessageLookupByLibrary.simpleMessage("Téléphone Vérifié"),
+    "phoneVerifiedDescription": MessageLookupByLibrary.simpleMessage(
+      "Votre numéro de téléphone a été vérifié avec succès. Vous avez accès à toutes les fonctionnalités.",
+    ),
     "phoneWillReceiveCode": MessageLookupByLibrary.simpleMessage(
       "Nous vous enverrons un code de vérification",
     ),
+    "platform": MessageLookupByLibrary.simpleMessage("Plateforme"),
     "pleaseAcceptTerms": MessageLookupByLibrary.simpleMessage(
       "Veuillez accepter les conditions d\'utilisation",
     ),
+    "position": MessageLookupByLibrary.simpleMessage("Position"),
     "privacy": MessageLookupByLibrary.simpleMessage("Confidentialité"),
     "privacyDesc": MessageLookupByLibrary.simpleMessage(
       "Paramètres de confidentialité",
@@ -229,6 +329,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "politique de confidentialité",
     ),
     "profile": MessageLookupByLibrary.simpleMessage("Profil"),
+    "profileOptions": MessageLookupByLibrary.simpleMessage("Options du Profil"),
     "profilePicture": MessageLookupByLibrary.simpleMessage("Photo de profil"),
     "profileUpdatedSuccess": MessageLookupByLibrary.simpleMessage(
       "Profil mis à jour avec succès !",
@@ -245,7 +346,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "removePhoto": MessageLookupByLibrary.simpleMessage("Supprimer la photo"),
     "resend": MessageLookupByLibrary.simpleMessage("Renvoyer"),
     "resendCode": MessageLookupByLibrary.simpleMessage("Renvoyer le code"),
-    "resendCodeIn": m2,
+    "resendCodeIn": m4,
     "resendEmail": MessageLookupByLibrary.simpleMessage("Renvoyer l\'email"),
     "resetLinkWillBeSent": MessageLookupByLibrary.simpleMessage(
       "Un email avec un lien de récupération sera envoyé à cette adresse.",
@@ -259,9 +360,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Trouvez les centres de santé les plus proches de vous",
     ),
     "save": MessageLookupByLibrary.simpleMessage("Sauvegarder"),
+    "saveYourData": MessageLookupByLibrary.simpleMessage(
+      "Sauvegarder vos données",
+    ),
     "send": MessageLookupByLibrary.simpleMessage("Envoyer"),
     "sendCode": MessageLookupByLibrary.simpleMessage("Envoyer le code"),
     "sendLink": MessageLookupByLibrary.simpleMessage("Envoyer le lien"),
+    "sendSmsCode": MessageLookupByLibrary.simpleMessage("Envoyer le Code SMS"),
     "services": MessageLookupByLibrary.simpleMessage("Services"),
     "settings": MessageLookupByLibrary.simpleMessage("Paramètres"),
     "signIn": MessageLookupByLibrary.simpleMessage("Se connecter"),
@@ -292,6 +397,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "startUsingServices": MessageLookupByLibrary.simpleMessage(
       "Commencez à utiliser nos services pour voir votre activité ici.",
     ),
+    "syncData": MessageLookupByLibrary.simpleMessage("Synchroniser"),
+    "syncDataOption": MessageLookupByLibrary.simpleMessage("Synchronisation"),
+    "syncInProgress": MessageLookupByLibrary.simpleMessage(
+      "Synchronisation des données en cours...",
+    ),
+    "syncUserData": MessageLookupByLibrary.simpleMessage(
+      "Synchroniser les données utilisateur",
+    ),
     "termsOfService": MessageLookupByLibrary.simpleMessage(
       "conditions d\'utilisation",
     ),
@@ -308,7 +421,20 @@ class MessageLookup extends MessageLookupByLibrary {
     "unsavedChangesMessage": MessageLookupByLibrary.simpleMessage(
       "Voulez-vous vraiment annuler vos modifications ?",
     ),
+    "upgradeAccountBenefits": MessageLookupByLibrary.simpleMessage(
+      "Passez d\'un compte invité à un compte complet pour :",
+    ),
+    "upgradeAccountDescription": MessageLookupByLibrary.simpleMessage(
+      "Transformez votre compte invité en compte permanent pour bénéficier de toutes les fonctionnalités.",
+    ),
+    "upgradeToFullAccount": MessageLookupByLibrary.simpleMessage(
+      "Passer à un Compte Complet",
+    ),
     "user": MessageLookupByLibrary.simpleMessage("Utilisateur"),
+    "userId": MessageLookupByLibrary.simpleMessage("Utilisateur"),
+    "usernamePlaceholder": MessageLookupByLibrary.simpleMessage(
+      "Nom d\'utilisateur",
+    ),
     "validationCodeLength": MessageLookupByLibrary.simpleMessage(
       "Le code doit contenir 6 chiffres",
     ),
@@ -348,6 +474,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "verificationCodeHint": MessageLookupByLibrary.simpleMessage("XXXXXX"),
     "verify": MessageLookupByLibrary.simpleMessage("Vérifier"),
+    "verifyCode": MessageLookupByLibrary.simpleMessage("Vérifier le Code"),
     "verifyEmail": MessageLookupByLibrary.simpleMessage("Vérifier l\'email"),
     "version": MessageLookupByLibrary.simpleMessage("Version"),
     "welcome": MessageLookupByLibrary.simpleMessage("Bienvenue !"),

@@ -198,5 +198,85 @@
   "choosePhoto": "Choisir une photo",
   "gpsAccess": "Un accès GPS est nécessaire",
   "enableGps": "Assurez-vous d'activer le GPS.",
-  "askAccess": "Demandez l'access"
+  "askAccess": "Demandez l'access",
+
+  "gpsEnabledMessage": "GPS activé ! Nous avons maintenant besoin de votre permission pour accéder à votre localisation.",
+  "gpsDisabledMessage": "Pour utiliser cette application, vous devez d'abord activer le GPS dans les paramètres de votre appareil.",
+  "permissionRequestInProgress": "Demande de permission en cours...",
+  "locationPermissionRequired": "Cette autorisation est nécessaire pour le bon fonctionnement de l'application.",
+
+  "emailVerificationInstructions": "Après avoir cliqué sur le lien, cette page se mettra automatiquement à jour.",
+
+  "newImageSelected": "Nouvelle image sélectionnée. Cliquez sur \"Sauvegarder\" pour confirmer.",
+  "usernamePlaceholder": "Nom d'utilisateur",
+  "changePasswordOption": "Modifier le mot de passe",
+  "imageSelectedMessage": "Image sélectionnée. N'oubliez pas de sauvegarder.",
+
+  "chooseMethod": "Choisir la méthode",
+  "upgradeToFullAccount": "Passer à un Compte Complet",
+  "enterSmsCodeMessage": "Entrez le code de vérification envoyé au {phoneNumber}",
+  "@enterSmsCodeMessage": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  "upgradeAccountDescription": "Transformez votre compte invité en compte permanent pour bénéficier de toutes les fonctionnalités.",
+  "saveYourData": "Sauvegarder vos données",
+  "multiDeviceSync": "Synchronisation multi-appareils",
+  "enhancedSecurity": "Sécurité renforcée",
+  "automaticBackup": "Sauvegarde automatique",
+  "emailAccountInfo": "Informations du Compte Email",
+  "phoneAccountInfo": "Informations du Compte Téléphone",
+  "phoneNumberHintCameroon": "6XX XXX XXX (sans +237)",
+  "createEmailAccount": "Créer mon Compte Email",
+  "sendSmsCode": "Envoyer le Code SMS",
+  "verifyCode": "Vérifier le Code",
+  "changePhoneNumber": "Changer de numéro",
+
+  "syncData": "Synchroniser",
+  "changeTheme": "Changer le thème",
+  "changeLanguage": "Changer la langue",
+  "syncInProgress": "Synchronisation des données en cours...",
+  "dataUpdated": "Données mises à jour",
+  "syncDataOption": "Synchronisation",
+  "syncUserData": "Synchroniser les données utilisateur",
+  "developer": "Développeur",
+  "debugInfo": "Infos de Debug",
+  "lastSyncMessage": "Dernière sync: {timestamp}",
+  "@lastSyncMessage": {
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "noFirestoreData": "Aucune donnée Firestore",
+  "authState": "État Auth",
+  "userId": "Utilisateur",
+  "firestoreData": "Firestore",
+  "lastSync": "Dernière sync",
+  "never": "jamais",
+  "locationActive": "Localisation active",
+  "appVersion": "Version app",
+  "platform": "Plateforme",
+  "osVersion": "OS",
+  "country": "Pays",
+  "position": "Position",
+
+  "profileOptions": "Options du Profil",
+
+  "phoneVerified": "Téléphone Vérifié",
+  "guestAccountDescription": "Vous utilisez un compte invité. Créez un compte complet pour sauvegarder vos données et accéder à toutes les fonctionnalités.",
+  "phoneVerifiedDescription": "Votre numéro de téléphone a été vérifié avec succès. Vous avez accès à toutes les fonctionnalités.",
+  "emailVerifiedDescription": "Votre adresse email a été vérifiée avec succès. Vous avez accès à toutes les fonctionnalités.",
+  "emailNotVerifiedDescription": "Votre adresse email n'est pas encore vérifiée. Vérifiez votre email pour accéder à toutes les fonctionnalités.",
+
+  "upgradeAccountBenefits": "Passez d'un compte invité à un compte complet pour :",
+  "dataWillBePreserved": "Vos données actuelles seront conservées lors de la migration.",
+  "personalizedNotifications": "Notifications personnalisées",
+  "createWithEmail": "Créer avec Email",
+  "createWithPhone": "Créer avec Téléphone",
+  "later": "Plus tard"
 }

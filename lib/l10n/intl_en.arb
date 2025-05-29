@@ -177,5 +177,85 @@
   "choosePhoto": "Choose Photo",
   "gpsAccess": "GPS access is required",
   "enableGps": "Make sure you activate GPS.",
-  "askAccess": "Request access"
+  "askAccess": "Request access",
+
+  "gpsEnabledMessage": "GPS is enabled! We now need your permission to access your location.",
+  "gpsDisabledMessage": "To use this application, you must first enable GPS in your device settings.",
+  "permissionRequestInProgress": "Permission request in progress...",
+  "locationPermissionRequired": "This authorization is necessary for the proper functioning of the application.",
+
+  "emailVerificationInstructions": "After clicking the link, this page will automatically update.",
+
+  "newImageSelected": "New image selected. Click \"Save\" to confirm.",
+  "usernamePlaceholder": "Username",
+  "changePasswordOption": "Change your password",
+  "imageSelectedMessage": "Image selected. Don't forget to save.",
+
+  "chooseMethod": "Choose method",
+  "upgradeToFullAccount": "Upgrade to Full Account",
+  "enterSmsCodeMessage": "Enter the verification code sent to {phoneNumber}",
+  "@enterSmsCodeMessage": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  "upgradeAccountDescription": "Transform your guest account into a permanent account to benefit from all features.",
+  "saveYourData": "Save your data",
+  "multiDeviceSync": "Multi-device synchronization",
+  "enhancedSecurity": "Enhanced security",
+  "automaticBackup": "Automatic backup",
+  "emailAccountInfo": "Email Account Information",
+  "phoneAccountInfo": "Phone Account Information",
+  "phoneNumberHintCameroon": "6XX XXX XXX (without +237)",
+  "createEmailAccount": "Create my Email Account",
+  "sendSmsCode": "Send SMS Code",
+  "verifyCode": "Verify Code",
+  "changePhoneNumber": "Change number",
+
+  "syncData": "Sync",
+  "changeTheme": "Change theme",
+  "changeLanguage": "Change language",
+  "syncInProgress": "Data synchronization in progress...",
+  "dataUpdated": "Data updated",
+  "syncDataOption": "Synchronization",
+  "syncUserData": "Sync user data",
+  "developer": "Developer",
+  "debugInfo": "Debug Info",
+  "lastSyncMessage": "Last sync: {timestamp}",
+  "@lastSyncMessage": {
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "noFirestoreData": "No Firestore data",
+  "authState": "Auth State",
+  "userId": "User ID",
+  "firestoreData": "Firestore",
+  "lastSync": "Last sync",
+  "never": "never",
+  "locationActive": "Location active",
+  "appVersion": "App version",
+  "platform": "Platform",
+  "osVersion": "OS",
+  "country": "Country",
+  "position": "Position",
+
+  "profileOptions": "Profile Options",
+
+  "phoneVerified": "Phone Verified",
+  "guestAccountDescription": "You are using a guest account. Create a full account to save your data and access all features.",
+  "phoneVerifiedDescription": "Your phone number has been successfully verified. You have access to all features.",
+  "emailVerifiedDescription": "Your email address has been successfully verified. You have access to all features.",
+  "emailNotVerifiedDescription": "Your email address is not yet verified. Verify your email to access all features.",
+
+  "upgradeAccountBenefits": "Upgrade from a guest account to a full account to:",
+  "dataWillBePreserved": "Your current data will be preserved during migration.",
+  "personalizedNotifications": "Personalized notifications",
+  "createWithEmail": "Create with Email",
+  "createWithPhone": "Create with Phone",
+  "later": "Later"
 }
