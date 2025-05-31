@@ -267,7 +267,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               ),
             ),
             Text(
-              label,
+              label, // Déjà traduit correctement avec l10n.camera et l10n.gallery
               style: TextStyle(
                 color: AppColors.white,
                 fontWeight: FontWeight.w600,
@@ -309,7 +309,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           KartiaSnackbar.show(
             // ignore: use_build_context_synchronously
             context,
-            message: 'Image sélectionnée. N\'oubliez pas de sauvegarder.',
+            message: l10n.imageSelectedMessage,
             type: SnackbarType.success,
           );
         } else {
@@ -826,7 +826,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   Expanded(
                     child: Text(
                       _selectedImage != null
-                          ? 'Nouvelle image sélectionnée. Cliquez sur "Sauvegarder" pour confirmer.'
+                          ? l10n
+                              .newImageSelected // ✅ NOUVEAU
                           : l10n.changePhoto,
                       style: TextStyle(
                         color:
@@ -942,7 +943,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                 ),
               ),
               KartiaTextField(
-                labelText: 'Nom d\'utilisateur',
+                labelText: l10n.usernamePlaceholder,
                 hintText: '@${firestoreUser!.username}',
                 prefixIcon: Icons.alternate_email,
                 enabled: false,
@@ -985,7 +986,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               children: [
                 Expanded(
                   child: Text(
-                    'Modifier le mot de passe',
+                    l10n.changePasswordOption,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.onSurfaceColor(context),

@@ -1489,6 +1489,521 @@ class KartiaLocalizations {
       args: [],
     );
   }
+
+  /// `GPS activé ! Nous avons maintenant besoin de votre permission pour accéder à votre localisation.`
+  String get gpsEnabledMessage {
+    return Intl.message(
+      'GPS activé ! Nous avons maintenant besoin de votre permission pour accéder à votre localisation.',
+      name: 'gpsEnabledMessage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pour utiliser cette application, vous devez d'abord activer le GPS dans les paramètres de votre appareil.`
+  String get gpsDisabledMessage {
+    return Intl.message(
+      'Pour utiliser cette application, vous devez d\'abord activer le GPS dans les paramètres de votre appareil.',
+      name: 'gpsDisabledMessage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Demande de permission en cours...`
+  String get permissionRequestInProgress {
+    return Intl.message(
+      'Demande de permission en cours...',
+      name: 'permissionRequestInProgress',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Cette autorisation est nécessaire pour le bon fonctionnement de l'application.`
+  String get locationPermissionRequired {
+    return Intl.message(
+      'Cette autorisation est nécessaire pour le bon fonctionnement de l\'application.',
+      name: 'locationPermissionRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Après avoir cliqué sur le lien, cette page se mettra automatiquement à jour.`
+  String get emailVerificationInstructions {
+    return Intl.message(
+      'Après avoir cliqué sur le lien, cette page se mettra automatiquement à jour.',
+      name: 'emailVerificationInstructions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nouvelle image sélectionnée. Cliquez sur "Sauvegarder" pour confirmer.`
+  String get newImageSelected {
+    return Intl.message(
+      'Nouvelle image sélectionnée. Cliquez sur "Sauvegarder" pour confirmer.',
+      name: 'newImageSelected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nom d'utilisateur`
+  String get usernamePlaceholder {
+    return Intl.message(
+      'Nom d\'utilisateur',
+      name: 'usernamePlaceholder',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Modifier le mot de passe`
+  String get changePasswordOption {
+    return Intl.message(
+      'Modifier le mot de passe',
+      name: 'changePasswordOption',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Image sélectionnée. N'oubliez pas de sauvegarder.`
+  String get imageSelectedMessage {
+    return Intl.message(
+      'Image sélectionnée. N\'oubliez pas de sauvegarder.',
+      name: 'imageSelectedMessage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choisir la méthode`
+  String get chooseMethod {
+    return Intl.message(
+      'Choisir la méthode',
+      name: 'chooseMethod',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Passer à un Compte Complet`
+  String get upgradeToFullAccount {
+    return Intl.message(
+      'Passer à un Compte Complet',
+      name: 'upgradeToFullAccount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Entrez le code de vérification envoyé au {phoneNumber}`
+  String enterSmsCodeMessage(String phoneNumber) {
+    return Intl.message(
+      'Entrez le code de vérification envoyé au $phoneNumber',
+      name: 'enterSmsCodeMessage',
+      desc: '',
+      args: [phoneNumber],
+    );
+  }
+
+  /// `Transformez votre compte invité en compte permanent pour bénéficier de toutes les fonctionnalités.`
+  String get upgradeAccountDescription {
+    return Intl.message(
+      'Transformez votre compte invité en compte permanent pour bénéficier de toutes les fonctionnalités.',
+      name: 'upgradeAccountDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sauvegarder vos données`
+  String get saveYourData {
+    return Intl.message(
+      'Sauvegarder vos données',
+      name: 'saveYourData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Synchronisation multi-appareils`
+  String get multiDeviceSync {
+    return Intl.message(
+      'Synchronisation multi-appareils',
+      name: 'multiDeviceSync',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sécurité renforcée`
+  String get enhancedSecurity {
+    return Intl.message(
+      'Sécurité renforcée',
+      name: 'enhancedSecurity',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sauvegarde automatique`
+  String get automaticBackup {
+    return Intl.message(
+      'Sauvegarde automatique',
+      name: 'automaticBackup',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Informations du Compte Email`
+  String get emailAccountInfo {
+    return Intl.message(
+      'Informations du Compte Email',
+      name: 'emailAccountInfo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Informations du Compte Téléphone`
+  String get phoneAccountInfo {
+    return Intl.message(
+      'Informations du Compte Téléphone',
+      name: 'phoneAccountInfo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `6XX XXX XXX (sans +237)`
+  String get phoneNumberHintCameroon {
+    return Intl.message(
+      '6XX XXX XXX (sans +237)',
+      name: 'phoneNumberHintCameroon',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Créer mon Compte Email`
+  String get createEmailAccount {
+    return Intl.message(
+      'Créer mon Compte Email',
+      name: 'createEmailAccount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Envoyer le Code SMS`
+  String get sendSmsCode {
+    return Intl.message(
+      'Envoyer le Code SMS',
+      name: 'sendSmsCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Vérifier le Code`
+  String get verifyCode {
+    return Intl.message(
+      'Vérifier le Code',
+      name: 'verifyCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Changer de numéro`
+  String get changePhoneNumber {
+    return Intl.message(
+      'Changer de numéro',
+      name: 'changePhoneNumber',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Synchroniser`
+  String get syncData {
+    return Intl.message('Synchroniser', name: 'syncData', desc: '', args: []);
+  }
+
+  /// `Changer le thème`
+  String get changeTheme {
+    return Intl.message(
+      'Changer le thème',
+      name: 'changeTheme',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Changer la langue`
+  String get changeLanguage {
+    return Intl.message(
+      'Changer la langue',
+      name: 'changeLanguage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Synchronisation des données en cours...`
+  String get syncInProgress {
+    return Intl.message(
+      'Synchronisation des données en cours...',
+      name: 'syncInProgress',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Données mises à jour`
+  String get dataUpdated {
+    return Intl.message(
+      'Données mises à jour',
+      name: 'dataUpdated',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Synchronisation`
+  String get syncDataOption {
+    return Intl.message(
+      'Synchronisation',
+      name: 'syncDataOption',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Synchroniser les données utilisateur`
+  String get syncUserData {
+    return Intl.message(
+      'Synchroniser les données utilisateur',
+      name: 'syncUserData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Développeur`
+  String get developer {
+    return Intl.message('Développeur', name: 'developer', desc: '', args: []);
+  }
+
+  /// `Infos de Debug`
+  String get debugInfo {
+    return Intl.message(
+      'Infos de Debug',
+      name: 'debugInfo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Dernière sync: {timestamp}`
+  String lastSyncMessage(String timestamp) {
+    return Intl.message(
+      'Dernière sync: $timestamp',
+      name: 'lastSyncMessage',
+      desc: '',
+      args: [timestamp],
+    );
+  }
+
+  /// `Aucune donnée Firestore`
+  String get noFirestoreData {
+    return Intl.message(
+      'Aucune donnée Firestore',
+      name: 'noFirestoreData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `État Auth`
+  String get authState {
+    return Intl.message('État Auth', name: 'authState', desc: '', args: []);
+  }
+
+  /// `Utilisateur`
+  String get userId {
+    return Intl.message('Utilisateur', name: 'userId', desc: '', args: []);
+  }
+
+  /// `Firestore`
+  String get firestoreData {
+    return Intl.message('Firestore', name: 'firestoreData', desc: '', args: []);
+  }
+
+  /// `Dernière sync`
+  String get lastSync {
+    return Intl.message('Dernière sync', name: 'lastSync', desc: '', args: []);
+  }
+
+  /// `jamais`
+  String get never {
+    return Intl.message('jamais', name: 'never', desc: '', args: []);
+  }
+
+  /// `Localisation active`
+  String get locationActive {
+    return Intl.message(
+      'Localisation active',
+      name: 'locationActive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Version app`
+  String get appVersion {
+    return Intl.message('Version app', name: 'appVersion', desc: '', args: []);
+  }
+
+  /// `Plateforme`
+  String get platform {
+    return Intl.message('Plateforme', name: 'platform', desc: '', args: []);
+  }
+
+  /// `OS`
+  String get osVersion {
+    return Intl.message('OS', name: 'osVersion', desc: '', args: []);
+  }
+
+  /// `Pays`
+  String get country {
+    return Intl.message('Pays', name: 'country', desc: '', args: []);
+  }
+
+  /// `Position`
+  String get position {
+    return Intl.message('Position', name: 'position', desc: '', args: []);
+  }
+
+  /// `Options du Profil`
+  String get profileOptions {
+    return Intl.message(
+      'Options du Profil',
+      name: 'profileOptions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Téléphone Vérifié`
+  String get phoneVerified {
+    return Intl.message(
+      'Téléphone Vérifié',
+      name: 'phoneVerified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Vous utilisez un compte invité. Créez un compte complet pour sauvegarder vos données et accéder à toutes les fonctionnalités.`
+  String get guestAccountDescription {
+    return Intl.message(
+      'Vous utilisez un compte invité. Créez un compte complet pour sauvegarder vos données et accéder à toutes les fonctionnalités.',
+      name: 'guestAccountDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Votre numéro de téléphone a été vérifié avec succès. Vous avez accès à toutes les fonctionnalités.`
+  String get phoneVerifiedDescription {
+    return Intl.message(
+      'Votre numéro de téléphone a été vérifié avec succès. Vous avez accès à toutes les fonctionnalités.',
+      name: 'phoneVerifiedDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Votre adresse email a été vérifiée avec succès. Vous avez accès à toutes les fonctionnalités.`
+  String get emailVerifiedDescription {
+    return Intl.message(
+      'Votre adresse email a été vérifiée avec succès. Vous avez accès à toutes les fonctionnalités.',
+      name: 'emailVerifiedDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Votre adresse email n'est pas encore vérifiée. Vérifiez votre email pour accéder à toutes les fonctionnalités.`
+  String get emailNotVerifiedDescription {
+    return Intl.message(
+      'Votre adresse email n\'est pas encore vérifiée. Vérifiez votre email pour accéder à toutes les fonctionnalités.',
+      name: 'emailNotVerifiedDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Passez d'un compte invité à un compte complet pour :`
+  String get upgradeAccountBenefits {
+    return Intl.message(
+      'Passez d\'un compte invité à un compte complet pour :',
+      name: 'upgradeAccountBenefits',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Vos données actuelles seront conservées lors de la migration.`
+  String get dataWillBePreserved {
+    return Intl.message(
+      'Vos données actuelles seront conservées lors de la migration.',
+      name: 'dataWillBePreserved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Notifications personnalisées`
+  String get personalizedNotifications {
+    return Intl.message(
+      'Notifications personnalisées',
+      name: 'personalizedNotifications',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Créer avec Email`
+  String get createWithEmail {
+    return Intl.message(
+      'Créer avec Email',
+      name: 'createWithEmail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Créer avec Téléphone`
+  String get createWithPhone {
+    return Intl.message(
+      'Créer avec Téléphone',
+      name: 'createWithPhone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Plus tard`
+  String get later {
+    return Intl.message('Plus tard', name: 'later', desc: '', args: []);
+  }
 }
 
 class AppLocalizationDelegate
